@@ -1,8 +1,10 @@
+"use client"
+
 import type React from "react"
-import type { Metadata } from "next"
 import { DM_Sans } from "next/font/google"
 import "./globals.css"
-import ClientLayout from "./client-layout"
+import { PageTransition } from "@/components/page-transition"
+import { useToast } from "@/components/notification-toast"
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -10,17 +12,10 @@ const dmSans = DM_Sans({
   variable: "--font-dm-sans",
 })
 
-export const metadata: Metadata = {
-  title: "DrawTogether - Multiplayer Drawing Game",
-  description: "Join friends and draw together in real-time. Guess words, earn points, and become the ultimate artist!",
-  generator: "v0.app",
-}
+// <CHANGE> Added client component wrapper for toast notifications
+function ClientLayout({ children }: { children: React.ReactNode }) {
+  const { ToastContainer } = useToast()
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
   return (
     <html lang="en" className="dark">
       <head>
@@ -32,8 +27,11 @@ html {
         `}</style>
       </head>
       <body className={`${dmSans.variable} antialiased`}>
-        <ClientLayout>{children}</ClientLayout>
+        <PageTransition>{children}</PageTransition>
+        <ToastContainer />
       </body>
     </html>
   )
 }
+
+export default ClientLayout

@@ -1,103 +1,283 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Palette, Users, Settings, HelpCircle, Plus, Search } from "lucide-react"
+import { useGameSocket } from "@/hooks/use-game-socket"
+import { RoomCreationModal } from "@/components/room-creation-modal"
+import { RoomBrowser } from "@/components/room-browser"
+import { AnimatedCounter } from "@/components/animated-counter"
+import Link from "next/link"
+
+export default function HomePage() {
+  const [selectedAvatar, setSelectedAvatar] = useState(0)
+  const [username, setUsername] = useState("")
+  const [roomCode, setRoomCode] = useState("")
+  const [showCreateRoom, setShowCreateRoom] = useState(false)
+  const [showRoomBrowser, setShowRoomBrowser] = useState(false)
+
+  const { createRoom, joinRoom, error, setError } = useGameSocket()
+
+  const avatarOptions = [
+    { id: 0, color: "bg-red-500", icon: "🎨" },
+    { id: 1, color: "bg-blue-500", icon: "✏️" },
+    { id: 2, color: "bg-green-500", icon: "🖌️" },
+    { id: 3, color: "bg-purple-500", icon: "🎭" },
+    { id: 4, color: "bg-yellow-500", icon: "🌟" },
+    { id: 5, color: "bg-pink-500", icon: "💫" },
+  ]
+
+  const playerData = {
+    id: Date.now().toString(),
+    name: username,
+    avatar: avatarOptions[selectedAvatar].icon,
+  }
+
+  const handleCreateRoom = (roomData: any) => {
+    if (!username.trim()) return
+    createRoom(roomData, playerData)
+    setShowCreateRoom(false)
+  }
+
+  const handleJoinRoom = (roomId: string, password?: string) => {
+    if (!username.trim()) return
+    joinRoom(roomId, playerData, password)
+  }
+
+  const handleQuickJoin = (roomId: string) => {
+    if (!username.trim()) return
+    joinRoom(roomId, playerData)
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      {/* Navigation Header */}
+      <nav className="flex items-center justify-between p-6 border-b border-slate-700/50 animate-slide-in-left">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center animate-float">
+            <Palette className="w-6 h-6 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+            DrawTogether
+          </h1>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="flex items-center gap-4">
+          <Link href="/tutorial">
+            <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover-lift btn-press">
+              <HelpCircle className="w-4 h-4 mr-2" />
+              How to Play
+            </Button>
+          </Link>
+          <Link href="/settings">
+            <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white hover-lift btn-press">
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </Button>
+          </Link>
+        </div>
+      </nav>
+
+      <div className="container mx-auto px-6 py-12">
+        {/* Hero Section */}
+        <div className="text-center mb-16 animate-fade-in">
+          <h2 className="text-6xl font-bold mb-6 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
+            Unleash Your Creativity!
+          </h2>
+          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+            Join friends and draw together in real-time. Guess words, earn points, and become the ultimate artist!
+          </p>
+
+          {/* Enhanced stats with animated counters */}
+          <div className="flex justify-center gap-8 mb-12 stagger-children">
+            <div className="text-center animate-scale-in" style={{ "--stagger-delay": 1 } as any}>
+              <div className="text-3xl font-bold text-red-400">
+                <AnimatedCounter value={1247} />
+              </div>
+              <div className="text-sm text-gray-400">Players Online</div>
+            </div>
+            <div className="text-center animate-scale-in" style={{ "--stagger-delay": 2 } as any}>
+              <div className="text-3xl font-bold text-blue-400">
+                <AnimatedCounter value={89} />
+              </div>
+              <div className="text-sm text-gray-400">Active Rooms</div>
+            </div>
+            <div className="text-center animate-scale-in" style={{ "--stagger-delay": 3 } as any}>
+              <div className="text-3xl font-bold text-green-400">
+                <AnimatedCounter value={15632} />
+              </div>
+              <div className="text-sm text-gray-400">Drawings Created</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8 max-w-7xl mx-auto stagger-children">
+          {/* Enhanced cards with hover effects and animations */}
+          <Card
+            className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover-lift animate-slide-in-left"
+            style={{ "--stagger-delay": 1 } as any}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Users className="w-5 h-5 text-red-400" />
+                Customize Your Avatar
+              </CardTitle>
+              <CardDescription className="text-gray-400">Choose your unique identity for the game</CardDescription>
+            </CardHeader>
+            <div className="p-6 pt-0">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                  <Input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your username"
+                    className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">Avatar</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {avatarOptions.map((avatar) => (
+                      <button
+                        key={avatar.id}
+                        onClick={() => setSelectedAvatar(avatar.id)}
+                        className={`w-16 h-16 rounded-xl ${avatar.color} flex items-center justify-center text-2xl transition-all duration-200 hover:scale-105 btn-press ${
+                          selectedAvatar === avatar.id
+                            ? "ring-2 ring-red-400 ring-offset-2 ring-offset-slate-800 animate-pulse-glow"
+                            : ""
+                        }`}
+                      >
+                        {avatar.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Game Actions */}
+          <Card
+            className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover-lift animate-fade-in"
+            style={{ "--stagger-delay": 2 } as any}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Palette className="w-5 h-5 text-blue-400" />
+                Start Playing
+              </CardTitle>
+              <CardDescription className="text-gray-400">Create or join a room to begin drawing</CardDescription>
+            </CardHeader>
+            <div className="p-6 pt-0 space-y-4">
+              <Button
+                onClick={() => setShowCreateRoom(true)}
+                disabled={!username.trim()}
+                className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-medium py-3 hover-lift btn-press transition-all duration-200"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Room
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-slate-800 text-gray-400">or</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={roomCode}
+                    onChange={(e) => setRoomCode(e.target.value)}
+                    placeholder="Enter room code"
+                    className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400 transition-all duration-200 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Button
+                    onClick={() => handleJoinRoom(roomCode)}
+                    disabled={!username.trim() || !roomCode.trim()}
+                    variant="outline"
+                    className="border-slate-600 text-white hover:bg-slate-700 btn-press"
+                  >
+                    Join
+                  </Button>
+                </div>
+
+                <Button
+                  onClick={() => setShowRoomBrowser(true)}
+                  disabled={!username.trim()}
+                  variant="outline"
+                  className="w-full border-slate-600 text-white hover:bg-slate-700 hover-lift btn-press"
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Browse Public Rooms
+                </Button>
+              </div>
+
+              {error && (
+                <div className="text-red-400 text-sm bg-red-400/10 p-3 rounded-lg animate-bounce-in border border-red-400/20">
+                  {error}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Leaderboard */}
+          <Card
+            className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover-lift animate-slide-in-right"
+            style={{ "--stagger-delay": 3 } as any}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Users className="w-5 h-5 text-green-400" />
+                Global Leaderboard
+              </CardTitle>
+              <CardDescription className="text-gray-400">Top players this week</CardDescription>
+            </CardHeader>
+            <div className="p-6 pt-0">
+              <div className="space-y-3">
+                {[
+                  { name: "ArtMaster", score: 2847, avatar: "🎨" },
+                  { name: "SketchKing", score: 2634, avatar: "✏️" },
+                  { name: "DrawWizard", score: 2521, avatar: "🖌️" },
+                  { name: "ColorQueen", score: 2398, avatar: "🎭" },
+                  { name: "PaintPro", score: 2276, avatar: "🌟" },
+                ].map((player, index) => (
+                  <div
+                    key={player.name}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-all duration-200 hover-lift animate-slide-in-left"
+                    style={{ "--stagger-delay": index + 1 } as any}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-gray-400 w-6">#{index + 1}</span>
+                      <span className="text-xl animate-float" style={{ animationDelay: `${index * 0.5}s` }}>
+                        {player.avatar}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-white">{player.name}</div>
+                      <div className="text-sm text-gray-400">
+                        <AnimatedCounter value={player.score} duration={1500} /> pts
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showCreateRoom && <RoomCreationModal onClose={() => setShowCreateRoom(false)} onCreateRoom={handleCreateRoom} />}
+
+      {showRoomBrowser && <RoomBrowser onClose={() => setShowRoomBrowser(false)} onJoinRoom={handleQuickJoin} />}
     </div>
-  );
+  )
 }
