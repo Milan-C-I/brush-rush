@@ -159,7 +159,7 @@ export function useUserSettings() {
   }
 
   const updateStats = (newStats: Partial<GameStats>) => {
-    setUserStats((prev) => ({ ...prev, ...newStats }))
+    setUserStats((prev: GameStats) => ({ ...prev, ...newStats }))
   }
 
   const resetSettings = () => {

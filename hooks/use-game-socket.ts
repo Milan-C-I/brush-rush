@@ -1,60 +1,101 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useSocket } from "./use-socket"
 
-interface Player {
+export interface Room {
+  id: string
+  name: string
+  maxPlayers: number
+  isPrivate: boolean
+  password?: string
+  customWords: string[]
+  rounds: number // Changed from maxRounds to match server
+  drawTime: number // Added to match server
+  gamePhase: "waiting" | "drawing"
+  currentWordCategory: string
+  currentWordIsCustom: boolean
+  players: Player[]
+  currentRound: number
+  currentDrawer: Player | null
+  currentWord: string | null
+  gameState: "waiting" | "playing" | "finished"
+  timeLeft: number
+  scores: Record<string, number>
+  usedWords: string[]
+  drawingData: any[]
+}
+
+export interface Player {
   id: string
   name: string
   avatar: string
   score: number
+  isHost: boolean
   isDrawing: boolean
   socketId: string
+  hasGuessed: boolean
 }
 
-interface Room {
-  id: string
-  name: string
-  players: Player[]
-  currentDrawer: string | null
-  currentWord: string | null
-  gamePhase: "waiting" | "drawing" | "guessing" | "results"
-  timeLeft: number
-  round: number
-  maxRounds: number
-  drawingData: any[]
-}
-
-interface ChatMessage {
+export interface ChatMessage {
   id: number
   player: string
   message: string
-  type: "chat" | "guess" | "system"
-  isCorrect?: boolean
+  type: "chat" | "system"
   timestamp: number
 }
 
 export function useGameSocket() {
   const { socket, isConnected } = useSocket()
+  const router = useRouter()
   const [room, setRoom] = useState<Room | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Clear error after some time
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error])
+
+  const joinRoom = useCallback((roomId: string, player: any, password?: string) => {
+    if (socket && !isLoading && isConnected) {
+      console.log("[GameSocket] Attempting to join room:", roomId, "with player:", player)
+      setIsLoading(true)
+      setError(null)
+      socket.emit("join-room", { roomId, player, password })
+    } else {
+      console.log("[GameSocket] Cannot join room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
+    }
+  }, [socket, isLoading, isConnected])
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket || !isConnected) return
+
+    console.log("[GameSocket] Setting up socket listeners")
 
     // Room events
-    socket.on("room-created", ({ roomId, room }) => {
+    const handleRoomCreated = ({ roomId, room }: { roomId: string, room: Room }) => {
+      console.log("[GameSocket] Room created:", roomId, room)
       setRoom(room)
       setError(null)
-    })
+      setIsLoading(false)
+      // Don't navigate here as it might cause issues
+    }
 
-    socket.on("room-joined", ({ room }) => {
+    const handleRoomJoined = ({ room }: { room: Room }) => {
+      console.log("[GameSocket] Room joined successfully:", room)
       setRoom(room)
       setError(null)
-    })
+      setIsLoading(false)
+    }
 
-    socket.on("player-joined", ({ player, players }) => {
+    const handlePlayerJoined = ({ player, players }: { player: Player, players: Player[] }) => {
+      console.log("[GameSocket] Player joined:", player)
       setRoom((prev) => (prev ? { ...prev, players } : null))
       setChatMessages((prev) => [
         ...prev,
@@ -66,9 +107,10 @@ export function useGameSocket() {
           timestamp: Date.now(),
         },
       ])
-    })
+    }
 
-    socket.on("player-left", ({ player, players }) => {
+    const handlePlayerLeft = ({ player, players }: { player: Player, players: Player[] }) => {
+      console.log("[GameSocket] Player left:", player)
       setRoom((prev) => (prev ? { ...prev, players } : null))
       setChatMessages((prev) => [
         ...prev,
@@ -80,18 +122,28 @@ export function useGameSocket() {
           timestamp: Date.now(),
         },
       ])
-    })
+    }
 
-    socket.on("game-started", ({ room }) => {
+    const handleGameStarted = ({ room }: { room: Room }) => {
+      console.log("[GameSocket] Game started:", room)
       setRoom(room)
-    })
+    }
+
+    const handleRoundStarted = ({ room, word, drawer }: { room: Room, word: string, drawer: Player }) => {
+      console.log("[GameSocket] Round started:", { room, word, drawer })
+      setRoom(room)
+    }
+
+    const handleTimerUpdate = ({ timeLeft }: { timeLeft: number }) => {
+      setRoom((prev) => prev ? { ...prev, timeLeft } : null)
+    }
 
     // Chat events
-    socket.on("chat-message", (message: ChatMessage) => {
+    const handleChatMessage = (message: ChatMessage) => {
       setChatMessages((prev) => [...prev, message])
-    })
+    }
 
-    socket.on("correct-guess", ({ player, word, points }) => {
+    const handleCorrectGuess = ({ player, word, points }: { player: string, word: string, points: number }) => {
       setChatMessages((prev) => [
         ...prev,
         {
@@ -102,70 +154,107 @@ export function useGameSocket() {
           timestamp: Date.now(),
         },
       ])
-    })
+    }
+
+    // Drawing events
+    const handleDrawingEvent = (event: any) => {
+      // Forward to canvas if needed
+    }
+
+    const handleCanvasCleared = () => {
+      // Clear canvas if needed
+    }
 
     // Error handling
-    socket.on("error", ({ message }) => {
+    const handleError = ({ message }: { message: string }) => {
+      console.error("[GameSocket] Error:", message)
       setError(message)
-    })
+      setIsLoading(false)
+    }
 
-    socket.on("kicked", () => {
+    const handleKicked = () => {
+      console.log("[GameSocket] Player was kicked")
       setError("You have been kicked from the room")
       setRoom(null)
-    })
+      setIsLoading(false)
+      router.push("/")
+    }
+
+    const handleGameFinished = ({ room }: { room: Room }) => {
+      console.log("[GameSocket] Game finished:", room)
+      setRoom(room)
+    }
+
+    // Register all event listeners
+    socket.on("room-created", handleRoomCreated)
+    socket.on("room-joined", handleRoomJoined)
+    socket.on("player-joined", handlePlayerJoined)
+    socket.on("player-left", handlePlayerLeft)
+    socket.on("game-started", handleGameStarted)
+    socket.on("round-started", handleRoundStarted)
+    socket.on("timer-update", handleTimerUpdate)
+    socket.on("chat-message", handleChatMessage)
+    socket.on("correct-guess", handleCorrectGuess)
+    socket.on("drawing-event", handleDrawingEvent)
+    socket.on("canvas-cleared", handleCanvasCleared)
+    socket.on("error", handleError)
+    socket.on("kicked", handleKicked)
+    socket.on("game-finished", handleGameFinished)
 
     return () => {
-      socket.off("room-created")
-      socket.off("room-joined")
-      socket.off("player-joined")
-      socket.off("player-left")
-      socket.off("game-started")
-      socket.off("chat-message")
-      socket.off("correct-guess")
-      socket.off("error")
-      socket.off("kicked")
+      console.log("[GameSocket] Cleaning up socket listeners")
+      socket.off("room-created", handleRoomCreated)
+      socket.off("room-joined", handleRoomJoined)
+      socket.off("player-joined", handlePlayerJoined)
+      socket.off("player-left", handlePlayerLeft)
+      socket.off("game-started", handleGameStarted)
+      socket.off("round-started", handleRoundStarted)
+      socket.off("timer-update", handleTimerUpdate)
+      socket.off("chat-message", handleChatMessage)
+      socket.off("correct-guess", handleCorrectGuess)
+      socket.off("drawing-event", handleDrawingEvent)
+      socket.off("canvas-cleared", handleCanvasCleared)
+      socket.off("error", handleError)
+      socket.off("kicked", handleKicked)
+      socket.off("game-finished", handleGameFinished)
     }
-  }, [socket])
+  }, [socket, isConnected, router])
 
   const createRoom = (roomData: any, player: any) => {
-    if (socket) {
+    if (socket && !isLoading && isConnected) {
+      setIsLoading(true)
+      setError(null)
       socket.emit("create-room", { roomData, player })
     }
   }
 
-  const joinRoom = (roomId: string, player: any, password?: string) => {
-    if (socket) {
-      socket.emit("join-room", { roomId, player, password })
-    }
-  }
-
   const startGame = () => {
-    if (socket) {
-      socket.emit("start-game")
+    if (socket && room && isConnected) {
+      socket.emit("start-game", { roomId: room.id })
     }
   }
 
   const sendChatMessage = (message: string) => {
-    if (socket) {
-      socket.emit("chat-message", { message })
+    if (socket && room && isConnected) {
+      socket.emit("chat-message", { roomId: room.id, message })
     }
   }
 
   const kickPlayer = (playerId: string) => {
-    if (socket) {
-      socket.emit("kick-player", { playerId })
+    if (socket && room && isConnected) {
+      socket.emit("kick-player", { roomId: room.id, playerId })
     }
   }
 
-  const sendDrawingEvent = (drawingEvent: any) => {
-    if (socket) {
-      socket.emit("drawing-event", drawingEvent)
+  const sendDrawingEvent = (event: any) => {
+    if (socket && room && isConnected) {
+      socket.emit("drawing-event", { roomId: room.id, event })
     }
   }
 
   const clearCanvas = () => {
-    if (socket) {
-      socket.emit("clear-canvas")
+    if (socket && room && isConnected) {
+      socket.emit("clear-canvas", { roomId: room.id })
     }
   }
 
@@ -175,6 +264,7 @@ export function useGameSocket() {
     room,
     chatMessages,
     error,
+    isLoading,
     createRoom,
     joinRoom,
     startGame,

@@ -44,16 +44,9 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
       isPrivate,
       password: isPrivate ? password : undefined,
       maxPlayers: maxPlayers[0],
-      maxRounds: maxRounds[0],
-      settings: {
-        roundTime: roundTime[0],
-        maxRounds: maxRounds[0],
-        difficulty,
-        categories: selectedCategories,
-        pointsForCorrectGuess: 100,
-        pointsForDrawer: 50,
-        hintTimings: [50, 70, 90],
-      },
+      rounds: maxRounds[0],
+      drawTime: roundTime[0],
+      customWords: [], // Will be populated based on categories
     }
 
     onCreateRoom(roomData)
@@ -134,20 +127,6 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
                 <Label className="text-gray-300">Round Time: {roundTime[0]}s</Label>
                 <Slider value={roundTime} onValueChange={setRoundTime} max={180} min={30} step={15} className="mt-2" />
               </div>
-
-              <div>
-                <Label className="text-gray-300">Difficulty</Label>
-                <select
-                  value={difficulty}
-                  onChange={(e) => setDifficulty(e.target.value)}
-                  className="w-full mt-2 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white"
-                >
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                  <option value="mixed">Mixed</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -185,9 +164,7 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
               <p>
                 {maxPlayers[0]} players • {maxRounds[0]} rounds • {roundTime[0]}s per round
               </p>
-              <p>
-                Difficulty: {difficulty} • Categories: {selectedCategories.join(", ")}
-              </p>
+              <p>Categories: {selectedCategories.join(", ")}</p>
               <p>{isPrivate ? "🔒 Private" : "🌐 Public"}</p>
             </div>
           </div>

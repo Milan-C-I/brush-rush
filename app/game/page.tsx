@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -32,6 +33,9 @@ import { CustomWordsManager } from "@/components/custom-words-manager"
 import { useGameSocket } from "@/hooks/use-game-socket"
 
 export default function GamePage() {
+  const searchParams = useSearchParams()
+  const roomId = searchParams.get("roomId")
+
   const [currentTool, setCurrentTool] = useState<"brush" | "eraser">("brush")
   const [brushSize, setBrushSize] = useState(5)
   const [brushColor, setBrushColor] = useState("#ff4757")
@@ -44,6 +48,7 @@ export default function GamePage() {
   const [showSettings, setShowSettings] = useState(false)
   const [showCustomWords, setShowCustomWords] = useState(false)
   const [revealedLetters, setRevealedLetters] = useState<boolean[]>([])
+  const [hasTriedJoining, setHasTriedJoining] = useState(false)
 
   const canvasRef = useRef<any>(null)
 
@@ -53,102 +58,47 @@ export default function GamePage() {
     room,
     chatMessages,
     error,
+    isLoading,
     sendChatMessage,
     sendDrawingEvent,
     clearCanvas: clearCanvasSocket,
     kickPlayer,
     startGame,
+    joinRoom,
   } = useGameSocket()
 
-  const currentPlayer = room?.players.find((p) => p.socketId === socket?.id)
+  // Auto-join room when connected and room ID is available
+  useEffect(() => {
+    console.log("[GamePage] Effect triggered:", { 
+      roomId, 
+      isConnected, 
+      hasRoom: !!room, 
+      hasTriedJoining,
+      isLoading 
+    })
+
+    if (roomId && isConnected && !room && !hasTriedJoining && !isLoading) {
+      const playerData = {
+        name: localStorage.getItem("playerName") || `Player_${Math.random().toString(36).substr(2, 4)}`,
+        avatar: localStorage.getItem("playerAvatar") || "🎨",
+      }
+
+      console.log("[GamePage] Auto-joining room:", roomId, "with player:", playerData)
+      setHasTriedJoining(true)
+      joinRoom(roomId, playerData)
+    }
+  }, [roomId, isConnected, room, hasTriedJoining, isLoading, joinRoom])
+
+  // Reset join attempt when connection changes
+  useEffect(() => {
+    if (!isConnected) {
+      setHasTriedJoining(false)
+    }
+  }, [isConnected])
+
+  const currentPlayer = room?.players.find((p) => p.id === socket?.id)
   const isDrawer = currentPlayer?.isDrawing || false
-  const isHost = room?.players[0]?.socketId === socket?.id
-
-  useEffect(() => {
-    if (!socket) return
-
-    const handleDrawingEvent = (event: any) => {
-      if (canvasRef.current) {
-        canvasRef.current.applyDrawingEvent(event)
-      }
-    }
-
-    const handleCanvasCleared = () => {
-      if (canvasRef.current) {
-        canvasRef.current.clear()
-      }
-    }
-
-    socket.on("drawing-event", handleDrawingEvent)
-    socket.on("canvas-cleared", handleCanvasCleared)
-
-    return () => {
-      socket.off("drawing-event", handleDrawingEvent)
-      socket.off("canvas-cleared", handleCanvasCleared)
-    }
-  }, [socket])
-
-  useEffect(() => {
-    if (!room?.currentWord) return
-
-    const word = room.currentWord
-    const timeLeft = room.timeLeft
-    const totalTime = 90
-
-    const halfTime = Math.floor(totalTime * 0.5)
-    const seventyPercent = Math.floor(totalTime * 0.3)
-    const ninetyPercent = Math.floor(totalTime * 0.1)
-
-    const newRevealed = new Array(word.length).fill(false)
-
-    // Always reveal spaces and special characters
-    for (let i = 0; i < word.length; i++) {
-      if (word[i] === " " || word[i] === "-" || word[i] === "'") {
-        newRevealed[i] = true
-      }
-    }
-
-    if (timeLeft <= halfTime) {
-      const randomIndex = Math.floor(Math.random() * word.length)
-      if (word[randomIndex] !== " " && word[randomIndex] !== "-" && word[randomIndex] !== "'") {
-        newRevealed[randomIndex] = true
-      }
-    }
-
-    if (timeLeft <= seventyPercent) {
-      let count = 0
-      while (count < 2) {
-        const randomIndex = Math.floor(Math.random() * word.length)
-        if (
-          !newRevealed[randomIndex] &&
-          word[randomIndex] !== " " &&
-          word[randomIndex] !== "-" &&
-          word[randomIndex] !== "'"
-        ) {
-          newRevealed[randomIndex] = true
-          count++
-        }
-      }
-    }
-
-    if (timeLeft <= ninetyPercent) {
-      let count = 0
-      while (count < 3) {
-        const randomIndex = Math.floor(Math.random() * word.length)
-        if (
-          !newRevealed[randomIndex] &&
-          word[randomIndex] !== " " &&
-          word[randomIndex] !== "-" &&
-          word[randomIndex] !== "'"
-        ) {
-          newRevealed[randomIndex] = true
-          count++
-        }
-      }
-    }
-
-    setRevealedLetters(newRevealed)
-  }, [room?.timeLeft, room?.currentWord])
+  const isHost = room?.players[0]?.id === socket?.id
 
   const handleUndo = () => {
     if (canvasRef.current) {
@@ -180,31 +130,78 @@ export default function GamePage() {
     sendDrawingEvent(event)
   }
 
+  const handleRetryConnection = () => {
+    setHasTriedJoining(false)
+    window.location.reload()
+  }
+
+  // Loading state - connecting to server
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
           <p className="text-xl">Connecting to game server...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!room) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl mb-4">No room found</p>
-          <Button onClick={() => (window.location.href = "/")}>
-            <Home className="w-4 h-4 mr-2" />
-            Back to Home
+          <p className="text-sm text-gray-400 mt-2">Make sure the socket server is running on port 3001</p>
+          <Button 
+            onClick={handleRetryConnection} 
+            className="mt-4 cursor-pointer"
+            variant="outline"
+          >
+            Retry Connection
           </Button>
         </div>
       </div>
     )
   }
 
+  // Loading state - joining room
+  if (roomId && !room && (isLoading || !hasTriedJoining)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-xl mb-2">Joining room {roomId}...</p>
+          <p className="text-sm text-gray-400">Please wait while we connect you to the room</p>
+          <Button 
+            onClick={handleRetryConnection} 
+            className="mt-4 cursor-pointer"
+            variant="outline"
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state or no room found
+  if (!room && hasTriedJoining && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl mb-4">
+            {error ? `Error: ${error}` : `Room ${roomId} not found`}
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => (window.location.href = "/")} className="cursor-pointer">
+              <Home className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+            <Button 
+              onClick={handleRetryConnection} 
+              className="cursor-pointer"
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Main game interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       {/* Game Header */}
@@ -213,7 +210,7 @@ export default function GamePage() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-gray-300 hover:text-white"
+            className="text-gray-300 hover:text-white cursor-pointer"
             onClick={() => (window.location.href = "/")}
           >
             <Home className="w-4 h-4 mr-2" />
@@ -231,15 +228,15 @@ export default function GamePage() {
           {/* Timer */}
           <div className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 rounded-lg">
             <Clock className="w-4 h-4 text-blue-400" />
-            <span className={`font-mono text-lg font-bold ${room.timeLeft <= 10 ? "text-red-400" : "text-white"}`}>
-              {Math.floor(room.timeLeft / 60)}:{(room.timeLeft % 60).toString().padStart(2, "0")}
+            <span className={`font-mono text-lg font-bold ${(room?.timeLeft || 0) <= 10 ? "text-red-400" : "text-white"}`}>
+              {Math.floor((room?.timeLeft || 0) / 60)}:{((room?.timeLeft || 0) % 60).toString().padStart(2, "0")}
             </span>
           </div>
 
           {/* Room Info */}
           <div className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 rounded-lg">
             <Users className="w-4 h-4 text-green-400" />
-            <span className="text-sm">Room: {room.id}</span>
+            <span className="text-sm">Room: {room?.id}</span>
           </div>
 
           {/* Connection Status */}
@@ -251,7 +248,7 @@ export default function GamePage() {
               variant="ghost"
               size="sm"
               onClick={() => setShowCustomWords(!showCustomWords)}
-              className="text-gray-300 hover:text-white"
+              className="text-gray-300 hover:text-white cursor-pointer"
             >
               <Plus className="w-4 h-4" />
             </Button>
@@ -262,7 +259,7 @@ export default function GamePage() {
             variant="ghost"
             size="sm"
             onClick={() => setShowSettings(!showSettings)}
-            className="text-gray-300 hover:text-white"
+            className="text-gray-300 hover:text-white cursor-pointer"
           >
             <Settings className="w-4 h-4" />
           </Button>
@@ -272,7 +269,7 @@ export default function GamePage() {
             variant="ghost"
             size="sm"
             onClick={() => setIsMuted(!isMuted)}
-            className="text-gray-300 hover:text-white"
+            className="text-gray-300 hover:text-white cursor-pointer"
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </Button>
@@ -283,14 +280,13 @@ export default function GamePage() {
         {/* Left Sidebar - Drawing Tools */}
         <div className="w-80 bg-slate-800/50 backdrop-blur-sm border-r border-slate-700/50 p-4 space-y-4 overflow-y-auto">
           {/* Word Display */}
-          <WordDisplay word={room.currentWord || ""} revealedLetters={revealedLetters} isDrawer={isDrawer} />
+          <WordDisplay word={room?.currentWord || ""} revealedLetters={revealedLetters} isDrawer={isDrawer} />
 
           {/* Custom Words Manager (Host Only) */}
           {showCustomWords && isHost && (
             <CustomWordsManager
               isHost={isHost}
               onWordsUpdated={() => {
-                // Refresh word sets or notify other players
                 console.log("Custom words updated")
               }}
             />
@@ -311,7 +307,7 @@ export default function GamePage() {
                   variant={currentTool === "brush" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentTool("brush")}
-                  className="flex-1"
+                  className="flex-1 cursor-pointer"
                   disabled={!isDrawer}
                 >
                   <Brush className="w-4 h-4 mr-2" />
@@ -321,7 +317,7 @@ export default function GamePage() {
                   variant={currentTool === "eraser" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentTool("eraser")}
-                  className="flex-1"
+                  className="flex-1 cursor-pointer"
                   disabled={!isDrawer}
                 >
                   <Eraser className="w-4 h-4 mr-2" />
@@ -338,7 +334,7 @@ export default function GamePage() {
                   max={50}
                   min={1}
                   step={1}
-                  className="w-full"
+                  className="w-full cursor-pointer"
                   disabled={!isDrawer}
                 />
               </div>
@@ -352,7 +348,7 @@ export default function GamePage() {
                   max={100}
                   min={10}
                   step={5}
-                  className="w-full"
+                  className="w-full cursor-pointer"
                   disabled={!isDrawer}
                 />
               </div>
@@ -367,7 +363,7 @@ export default function GamePage() {
                   size="sm"
                   onClick={handleUndo}
                   disabled={!canUndo || !isDrawer}
-                  className="flex-1 bg-transparent"
+                  className="flex-1 bg-transparent cursor-pointer disabled:cursor-not-allowed"
                 >
                   <Undo2 className="w-4 h-4 mr-1" />
                   Undo
@@ -377,7 +373,7 @@ export default function GamePage() {
                   size="sm"
                   onClick={handleRedo}
                   disabled={!canRedo || !isDrawer}
-                  className="flex-1 bg-transparent"
+                  className="flex-1 bg-transparent cursor-pointer disabled:cursor-not-allowed"
                 >
                   <Redo2 className="w-4 h-4 mr-1" />
                   Redo
@@ -388,7 +384,7 @@ export default function GamePage() {
                 variant="destructive"
                 size="sm"
                 onClick={handleClearCanvas}
-                className="w-full"
+                className="w-full cursor-pointer"
                 disabled={!isDrawer}
               >
                 Clear Canvas
@@ -398,9 +394,9 @@ export default function GamePage() {
 
           {/* Players List */}
           <PlayersList
-            players={room.players}
+            players={room?.players || []}
             onKickPlayer={kickPlayer}
-            isHost={room.players[0]?.socketId === socket?.id}
+            isHost={room?.players?.[0]?.id === socket?.id}
           />
         </div>
 
@@ -433,17 +429,17 @@ export default function GamePage() {
           <div className="p-4 border-b border-slate-700/50">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-300">
-                Round {room.round} of {room.maxRounds}
+                Round {room?.currentRound || 0} of {room?.round || 0}
               </h3>
               <Badge variant="secondary" className="bg-green-500/20 text-green-400">
-                {room.gamePhase === "drawing" ? "Drawing Phase" : room.gamePhase === "waiting" ? "Waiting" : "Results"}
+                {room?.gameState === "playing" ? "Playing" : room?.gameState === "waiting" ? "Waiting" : "Finished"}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <Trophy className="w-4 h-4 text-yellow-400" />
               <span className="text-sm text-gray-300">Your Score: {currentPlayer?.score || 0} pts</span>
             </div>
-            {room.currentWordCategory && (
+            {room?.currentWordCategory && (
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="outline" className="text-xs">
                   {room.currentWordCategory}
@@ -462,7 +458,7 @@ export default function GamePage() {
             <GameChat messages={chatMessages} currentPlayer={currentPlayer?.name || "You"} isDrawer={isDrawer} />
 
             {/* Chat Input */}
-            {!isDrawer && room.gamePhase === "drawing" && (
+            {!isDrawer && room?.gameState === "playing" && (
               <div className="p-4 border-t border-slate-700/50">
                 <div className="flex gap-2">
                   <Input
@@ -472,7 +468,7 @@ export default function GamePage() {
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                     className="bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-400"
                   />
-                  <Button size="sm" onClick={handleSendMessage}>
+                  <Button size="sm" onClick={handleSendMessage} className="cursor-pointer">
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
@@ -497,8 +493,8 @@ export default function GamePage() {
       {error && (
         <div className="fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg">
           {error}
-          <Button variant="ghost" size="sm" onClick={() => window.location.reload()} className="ml-2">
-            Reload
+          <Button variant="ghost" size="sm" onClick={handleRetryConnection} className="ml-2 cursor-pointer">
+            Retry
           </Button>
         </div>
       )}

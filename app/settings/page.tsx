@@ -24,7 +24,7 @@ import {
   Zap,
 } from "lucide-react"
 import Link from "next/link"
-import { useUserSettings } from "@/hooks/use-user-settings"
+import { useUserSettings } from "@/use-user-settings"
 
 export default function SettingsPage() {
   const { settings, updateSettings, resetSettings, userStats } = useUserSettings()
@@ -170,7 +170,7 @@ export default function SettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {Object.entries(settings.hotkeys).map(([action, key]) => (
+                {Object.entries(settings.hotkeys as Record<string, string>).map(([action, key]) => (
                   <div key={action} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
                     <span className="text-gray-300 capitalize">{action.replace(/([A-Z])/g, " $1")}</span>
                     <div className="flex items-center gap-2">
