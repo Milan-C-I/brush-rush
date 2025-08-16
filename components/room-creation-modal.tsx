@@ -17,7 +17,6 @@ interface RoomCreationModalProps {
 }
 
 export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCreationModalProps) {
-  const [roomName, setRoomName] = useState("")
   const [isPrivate, setIsPrivate] = useState(false)
   const [password, setPassword] = useState("")
   const [maxPlayers, setMaxPlayers] = useState([8])
@@ -35,23 +34,26 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
   }
 
   const handleCreateRoom = () => {
-    if (!roomName.trim()) {
-      alert("Please enter a room name")
-      return
-    }
-    
     if (selectedCategories.length === 0) {
       alert("Please select at least one category")
       return
     }
-    
+
     if (isPrivate && !password.trim()) {
       alert("Please enter a password for private room")
       return
     }
 
+    const generateRoomName = () => {
+      const adjectives = ["Creative", "Artistic", "Fun", "Amazing", "Cool", "Epic", "Super", "Awesome"]
+      const nouns = ["Studio", "Gallery", "Canvas", "Workshop", "Space", "Room", "Hub", "Zone"]
+      const adjective = adjectives[Math.floor(Math.random() * adjectives.length)]
+      const noun = nouns[Math.floor(Math.random() * nouns.length)]
+      return `${playerData?.name}'s ${adjective} ${noun}`
+    }
+
     const roomData = {
-      name: roomName.trim(),
+      name: generateRoomName(),
       isPrivate,
       password: isPrivate ? password.trim() : undefined,
       maxPlayers: maxPlayers[0],
@@ -81,17 +83,6 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
         <CardContent className="space-y-6">
           {/* Basic Settings */}
           <div className="space-y-4">
-            <div>
-              <Label className="text-gray-300">Room Name</Label>
-              <Input
-                placeholder="Enter room name..."
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                className="bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-400"
-                maxLength={30}
-              />
-            </div>
-
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {isPrivate ? (
@@ -187,7 +178,7 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
             <h4 className="text-sm font-medium text-gray-300 mb-2">Room Preview</h4>
             <div className="space-y-1 text-sm text-gray-400">
               <p>
-                <span className="text-white">{roomName || "Untitled Room"}</span> by {playerData?.name}
+                <span className="text-white">Room by {playerData?.name}</span>
               </p>
               <p>
                 {maxPlayers[0]} players • {maxRounds[0]} rounds • {roundTime[0]}s per round
@@ -213,9 +204,9 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button 
-              variant="outline" 
-              onClick={onClose} 
+            <Button
+              variant="outline"
+              onClick={onClose}
               className="flex-1 bg-transparent border-slate-600 text-white hover:bg-slate-700 cursor-pointer"
             >
               Cancel
@@ -223,7 +214,7 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
             <Button
               onClick={handleCreateRoom}
               className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 cursor-pointer"
-              disabled={!roomName.trim() || selectedCategories.length === 0 || (isPrivate && !password.trim())}
+              disabled={selectedCategories.length === 0 || (isPrivate && !password.trim())}
             >
               Create Room
             </Button>
