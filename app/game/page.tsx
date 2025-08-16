@@ -35,6 +35,9 @@ import { useGameSocket } from "@/hooks/use-game-socket"
 export default function GamePage() {
   const searchParams = useSearchParams()
   const roomId = searchParams.get("roomId")
+  const playerName = searchParams.get("playerName")
+  const playerAvatar = searchParams.get("playerAvatar")
+  const password = searchParams.get("password")
 
   const [currentTool, setCurrentTool] = useState<"brush" | "eraser">("brush")
   const [brushSize, setBrushSize] = useState(5)
@@ -65,27 +68,33 @@ export default function GamePage() {
     clearCanvas: clearCanvasSocket,
     kickPlayer,
     startGame,
-    joinRoom,
+    joinRoomInGame,
     setError,
   } = useGameSocket()
 
-  // Wait for connection before attempting to join
+  // Auto-join room when page loads with parameters
   useEffect(() => {
-    console.log("[GamePage] Connection status changed:", { isConnected, roomId, room: !!room, hasTriedJoining })
+    console.log("[GamePage] Connection status changed:", { 
+      isConnected, 
+      roomId, 
+      playerName, 
+      room: !!room, 
+      hasTriedJoining 
+    })
     
-    if (roomId && isConnected && !room && !hasTriedJoining && !isLoading) {
+    if (roomId && playerName && isConnected && !room && !hasTriedJoining && !isLoading) {
       const playerData = {
         id: socket?.id || Date.now().toString(),
-        name: localStorage.getItem("playerName") || `Player_${Math.random().toString(36).substr(2, 4)}`,
-        avatar: localStorage.getItem("playerAvatar") || "🎨",
+        name: playerName || `Player_${Math.random().toString(36).substr(2, 4)}`,
+        avatar: playerAvatar || "🎨",
       }
 
       console.log("[GamePage] Auto-joining room:", roomId, "with player:", playerData)
       setHasTriedJoining(true)
       setConnectionRetries(0)
-      joinRoom(roomId, playerData)
+      joinRoomInGame(roomId, playerData, password || undefined)
     }
-  }, [roomId, isConnected, room, hasTriedJoining, isLoading, joinRoom, socket?.id])
+  }, [roomId, playerName, isConnected, room, hasTriedJoining, isLoading, joinRoomInGame, socket?.id, playerAvatar, password])
 
   // Reset join attempt when connection changes
   useEffect(() => {
@@ -148,6 +157,22 @@ export default function GamePage() {
     setConnectionRetries(0)
     setError(null)
     window.location.reload()
+  }
+
+  // Check if we have required parameters
+  if (!roomId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl mb-4 text-red-400">Missing room information</p>
+          <p className="text-sm text-gray-400 mb-4">Please join a room from the homepage</p>
+          <Button onClick={() => (window.location.href = "/")} className="cursor-pointer">
+            <Home className="w-4 h-4 mr-2" />
+            Back to Home
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   // Loading state - connecting to server
@@ -224,7 +249,10 @@ export default function GamePage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl mb-4 text-red-400">
-            {error || `Room ${roomId} not found`}
+            {error || `Room ${roomId} not found or access denied`}
+          </p>
+          <p className="text-sm text-gray-400 mb-4">
+            The room may not exist, be full, or require a password
           </p>
           <div className="flex gap-2 justify-center">
             <Button onClick={() => (window.location.href = "/")} className="cursor-pointer">
@@ -284,6 +312,17 @@ export default function GamePage() {
 
           {/* Connection Status */}
           <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"}`} />
+
+          {/* Start Game Button (Host Only) */}
+          {isHost && room?.gameState === "waiting" && (
+            <Button
+              onClick={startGame}
+              className="bg-green-500 hover:bg-green-600 cursor-pointer"
+              disabled={room?.players.length < 2}
+            >
+              Start Game
+            </Button>
+          )}
 
           {/* Custom Words (Host Only) */}
           {isHost && (

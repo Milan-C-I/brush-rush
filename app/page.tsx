@@ -18,7 +18,7 @@ export default function HomePage() {
   const [showCreateRoom, setShowCreateRoom] = useState(false)
   const [showRoomBrowser, setShowRoomBrowser] = useState(false)
 
-  const { createRoom, joinRoom, error, isLoading, setError } = useGameSocket()
+  const { createRoom, joinRoom, error, isLoading, setError, isConnected } = useGameSocket()
 
   const avatarOptions = [
     { id: 0, color: "bg-red-500", icon: "🎨" },
@@ -29,6 +29,24 @@ export default function HomePage() {
     { id: 5, color: "bg-pink-500", icon: "💫" },
   ]
 
+  // Load saved user preferences
+  useEffect(() => {
+    const savedName = localStorage.getItem("playerName")
+    const savedAvatar = localStorage.getItem("playerAvatar")
+    
+    if (savedName) {
+      setUsername(savedName)
+    }
+    
+    if (savedAvatar) {
+      const avatarIndex = avatarOptions.findIndex(avatar => avatar.icon === savedAvatar)
+      if (avatarIndex !== -1) {
+        setSelectedAvatar(avatarIndex)
+      }
+    }
+  }, [])
+
+  // Save user preferences when they change
   useEffect(() => {
     if (username.trim()) {
       localStorage.setItem("playerName", username)
@@ -38,24 +56,56 @@ export default function HomePage() {
 
   const playerData = {
     id: Date.now().toString(),
-    name: username,
+    name: username.trim(),
     avatar: avatarOptions[selectedAvatar].icon,
   }
 
   const handleCreateRoom = (roomData: any) => {
-    if (!username.trim()) return
+    if (!username.trim()) {
+      setError("Please enter a username first")
+      return
+    }
+    
+    if (!isConnected) {
+      setError("Not connected to server. Please wait and try again.")
+      return
+    }
+
     createRoom(roomData, playerData)
     setShowCreateRoom(false)
   }
 
   const handleJoinRoom = (roomId: string, password?: string) => {
-    if (!username.trim()) return
+    if (!username.trim()) {
+      setError("Please enter a username first")
+      return
+    }
+    
+    if (!isConnected) {
+      setError("Not connected to server. Please wait and try again.")
+      return
+    }
+
     joinRoom(roomId, playerData, password)
   }
 
   const handleQuickJoin = () => {
-    if (!username.trim() || !roomCode.trim()) return
-    joinRoom(roomCode, playerData)
+    if (!username.trim()) {
+      setError("Please enter a username first")
+      return
+    }
+    
+    if (!roomCode.trim()) {
+      setError("Please enter a room code")
+      return
+    }
+    
+    if (!isConnected) {
+      setError("Not connected to server. Please wait and try again.")
+      return
+    }
+
+    joinRoom(roomCode.trim(), playerData)
   }
 
   const handleRefreshRooms = () => {
@@ -76,6 +126,14 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Connection Status */}
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"}`} />
+            <span className="text-sm text-gray-400">
+              {isConnected ? "Connected" : "Connecting..."}
+            </span>
+          </div>
+          
           <Link href="/tutorial">
             <Button
               variant="ghost"
@@ -164,6 +222,7 @@ export default function HomePage() {
                     placeholder="Enter your username"
                     className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400 transition-all duration-200 focus:ring-2 focus:ring-blue-500 cursor-text"
                     disabled={isLoading}
+                    maxLength={20}
                   />
                 </div>
 
@@ -205,7 +264,7 @@ export default function HomePage() {
             <div className="p-6 pt-0 space-y-4">
               <Button
                 onClick={() => setShowCreateRoom(true)}
-                disabled={!username.trim() || isLoading}
+                disabled={!username.trim() || isLoading || !isConnected}
                 className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-medium py-3 hover-lift btn-press transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
@@ -228,12 +287,12 @@ export default function HomePage() {
                     onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                     placeholder="Enter room code"
                     className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400 transition-all duration-200 focus:ring-2 focus:ring-blue-500 cursor-text"
-                    disabled={isLoading}
+                    disabled={isLoading || !isConnected}
                     maxLength={6}
                   />
                   <Button
                     onClick={handleQuickJoin}
-                    disabled={!username.trim() || !roomCode.trim() || isLoading}
+                    disabled={!username.trim() || !roomCode.trim() || isLoading || !isConnected}
                     variant="outline"
                     className="border-slate-600 text-white hover:bg-slate-700 btn-press cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 bg-transparent"
                   >
@@ -243,7 +302,7 @@ export default function HomePage() {
 
                 <Button
                   onClick={() => setShowRoomBrowser(true)}
-                  disabled={!username.trim() || isLoading}
+                  disabled={!username.trim() || isLoading || !isConnected}
                   variant="outline"
                   className="w-full border-slate-600 text-white hover:bg-slate-700 hover-lift btn-press cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -261,6 +320,12 @@ export default function HomePage() {
                   >
                     ✕
                   </button>
+                </div>
+              )}
+
+              {!isConnected && (
+                <div className="text-yellow-400 text-sm bg-yellow-400/10 p-3 rounded-lg border border-yellow-400/20">
+                  Connecting to server... Please wait.
                 </div>
               )}
             </div>

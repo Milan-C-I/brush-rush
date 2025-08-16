@@ -35,18 +35,31 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
   }
 
   const handleCreateRoom = () => {
-    if (!roomName.trim()) return
-    if (selectedCategories.length === 0) return
-    if (isPrivate && !password.trim()) return
+    if (!roomName.trim()) {
+      alert("Please enter a room name")
+      return
+    }
+    
+    if (selectedCategories.length === 0) {
+      alert("Please select at least one category")
+      return
+    }
+    
+    if (isPrivate && !password.trim()) {
+      alert("Please enter a password for private room")
+      return
+    }
 
     const roomData = {
-      name: roomName,
+      name: roomName.trim(),
       isPrivate,
-      password: isPrivate ? password : undefined,
+      password: isPrivate ? password.trim() : undefined,
       maxPlayers: maxPlayers[0],
       rounds: maxRounds[0],
       drawTime: roundTime[0],
       customWords: [], // Will be populated based on categories
+      categories: selectedCategories,
+      difficulty,
     }
 
     onCreateRoom(roomData)
@@ -60,7 +73,7 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
             <Plus className="w-5 h-5 text-green-400" />
             Create New Room
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} className="cursor-pointer hover:bg-slate-700">
             <X className="w-4 h-4" />
           </Button>
         </CardHeader>
@@ -100,6 +113,7 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-slate-700/50 border-slate-600 text-white placeholder:text-gray-400"
+                  maxLength={20}
                 />
               </div>
             )}
@@ -123,10 +137,24 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
                 <Slider value={maxRounds} onValueChange={setMaxRounds} max={10} min={3} step={1} className="mt-2" />
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <Label className="text-gray-300">Round Time: {roundTime[0]}s</Label>
                 <Slider value={roundTime} onValueChange={setRoundTime} max={180} min={30} step={15} className="mt-2" />
               </div>
+            </div>
+
+            <div>
+              <Label className="text-gray-300 mb-2 block">Difficulty Level</Label>
+              <select
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded text-white cursor-pointer hover:bg-slate-700"
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+                <option value="mixed">Mixed (Recommended)</option>
+              </select>
             </div>
           </div>
 
@@ -164,19 +192,37 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
               <p>
                 {maxPlayers[0]} players • {maxRounds[0]} rounds • {roundTime[0]}s per round
               </p>
+              <p>Difficulty: {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</p>
               <p>Categories: {selectedCategories.join(", ")}</p>
-              <p>{isPrivate ? "🔒 Private" : "🌐 Public"}</p>
+              <p className="flex items-center gap-1">
+                {isPrivate ? (
+                  <>
+                    <Lock className="w-3 h-3 text-yellow-400" />
+                    <span className="text-yellow-400">Private</span>
+                    {password && <span className="text-gray-400">(Password protected)</span>}
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-3 h-3 text-green-400" />
+                    <span className="text-green-400">Public</span>
+                  </>
+                )}
+              </p>
             </div>
           </div>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button variant="outline" onClick={onClose} className="flex-1 bg-transparent">
+            <Button 
+              variant="outline" 
+              onClick={onClose} 
+              className="flex-1 bg-transparent border-slate-600 text-white hover:bg-slate-700 cursor-pointer"
+            >
               Cancel
             </Button>
             <Button
               onClick={handleCreateRoom}
-              className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+              className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 cursor-pointer"
               disabled={!roomName.trim() || selectedCategories.length === 0 || (isPrivate && !password.trim())}
             >
               Create Room

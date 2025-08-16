@@ -62,20 +62,6 @@ export function useGameSocket() {
     }
   }, [error])
 
-  const joinRoom = useCallback((roomId: string, player: any, password?: string) => {
-    if (socket && isConnected && !isLoading) {
-      console.log("[GameSocket] Attempting to join room:", roomId, "with player:", player)
-      setIsLoading(true)
-      setError(null)
-      socket.emit("join-room", { roomId, player, password })
-    } else {
-      console.log("[GameSocket] Cannot join room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
-      if (!isConnected) {
-        setError("Not connected to server. Please wait and try again.")
-      }
-    }
-  }, [socket, isLoading, isConnected])
-
   const createRoom = useCallback((roomData: any, player: any) => {
     if (socket && isConnected && !isLoading) {
       console.log("[GameSocket] Creating room with data:", roomData, "player:", player)
@@ -84,6 +70,41 @@ export function useGameSocket() {
       socket.emit("create-room", { roomData, player })
     } else {
       console.log("[GameSocket] Cannot create room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
+      if (!isConnected) {
+        setError("Not connected to server. Please wait and try again.")
+      }
+    }
+  }, [socket, isLoading, isConnected])
+
+  const joinRoomFromHomepage = useCallback((roomId: string, player: any, password?: string) => {
+    if (!isConnected) {
+      setError("Not connected to server. Please wait and try again.")
+      return
+    }
+
+    // For homepage joins, we navigate to the game page with parameters
+    // The actual socket join will happen in the game page
+    const params = new URLSearchParams({
+      roomId,
+      playerName: player.name,
+      playerAvatar: player.avatar,
+    })
+    
+    if (password) {
+      params.append('password', password)
+    }
+
+    router.push(`/game?${params.toString()}`)
+  }, [isConnected, router])
+
+  const joinRoomInGame = useCallback((roomId: string, player: any, password?: string) => {
+    if (socket && isConnected && !isLoading) {
+      console.log("[GameSocket] Attempting to join room:", roomId, "with player:", player)
+      setIsLoading(true)
+      setError(null)
+      socket.emit("join-room", { roomId, player, password })
+    } else {
+      console.log("[GameSocket] Cannot join room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
       if (!isConnected) {
         setError("Not connected to server. Please wait and try again.")
       }
@@ -277,7 +298,8 @@ export function useGameSocket() {
     error,
     isLoading,
     createRoom,
-    joinRoom,
+    joinRoom: joinRoomFromHomepage, // For homepage usage
+    joinRoomInGame, // For game page usage
     startGame,
     sendChatMessage,
     kickPlayer,

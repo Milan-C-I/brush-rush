@@ -22,16 +22,16 @@ const createRoom = (id, name, maxPlayers, isPrivate, password, customWords, roun
   isPrivate,
   password,
   customWords,
-  rounds, // Changed from maxRounds to match client
+  rounds,
   drawTime,
   players: [],
   currentRound: 0,
   currentDrawer: null,
   currentWord: null,
   gameState: "waiting", // 'waiting', 'playing', 'finished'
-  gamePhase: "waiting", // Added to match client interface
-  currentWordCategory: "", // Added to match client interface
-  currentWordIsCustom: false, // Added to match client interface
+  gamePhase: "waiting",
+  currentWordCategory: "",
+  currentWordIsCustom: false,
   timeLeft: 0,
   scores: {},
   usedWords: [],
@@ -44,8 +44,8 @@ const createPlayer = (id, name, avatar) => ({
   avatar,
   score: 0,
   isHost: false,
-  isDrawing: false, // Added to match client interface
-  socketId: id, // Added to match client interface
+  isDrawing: false,
+  socketId: id,
   hasGuessed: false,
 })
 
@@ -144,13 +144,13 @@ io.on("connection", (socket) => {
 
   socket.on("create-room", ({ roomData, player }) => {
     try {
-      const roomId = roomData.name || generateRoomId()
-      
-      // Check if room already exists
-      if (rooms.has(roomId)) {
-        socket.emit("error", { message: "Room with this name already exists" })
-        return
+      // Generate a unique room ID
+      let roomId = generateRoomId()
+      while (rooms.has(roomId)) {
+        roomId = generateRoomId()
       }
+
+      console.log(`[Server] Creating room ${roomId} with data:`, roomData)
 
       const room = createRoom(
         roomId,
@@ -176,7 +176,7 @@ io.on("connection", (socket) => {
       socket.emit("room-created", { roomId, room })
     } catch (error) {
       console.error("Create room error:", error)
-      socket.emit("error", { message: "Failed to create room" })
+      socket.emit("error", { message: "Failed to create room: " + error.message })
     }
   })
 
@@ -196,7 +196,7 @@ io.on("connection", (socket) => {
         return
       }
 
-      if (room.isPrivate && room.password !== password) {
+      if (room.isPrivate && room.password && room.password !== password) {
         socket.emit("error", { message: "Incorrect password" })
         return
       }
@@ -207,6 +207,22 @@ io.on("connection", (socket) => {
         console.log(`[Server] Player ${player.name} already in room ${roomId}`)
         socket.emit("room-joined", { room })
         return
+      }
+
+      // Check if player is already in another room
+      const currentRoomId = playerRooms.get(socket.id)
+      if (currentRoomId && currentRoomId !== roomId) {
+        const currentRoom = rooms.get(currentRoomId)
+        if (currentRoom) {
+          // Remove player from current room
+          currentRoom.players = currentRoom.players.filter(p => p.id !== socket.id)
+          delete currentRoom.scores[socket.id]
+          socket.leave(currentRoomId)
+          socket.to(currentRoomId).emit("player-left", {
+            player: { id: socket.id, name: player.name },
+            players: currentRoom.players
+          })
+        }
       }
 
       const newPlayer = createPlayer(socket.id, player.name, player.avatar)
@@ -221,14 +237,17 @@ io.on("connection", (socket) => {
       socket.to(roomId).emit("player-joined", { player: newPlayer, players: room.players })
     } catch (error) {
       console.error("Join room error:", error)
-      socket.emit("error", { message: "Failed to join room" })
+      socket.emit("error", { message: "Failed to join room: " + error.message })
     }
   })
 
   socket.on("start-game", ({ roomId }) => {
     try {
       const room = rooms.get(roomId)
-      if (!room) return
+      if (!room) {
+        socket.emit("error", { message: "Room not found" })
+        return
+      }
 
       const player = room.players.find((p) => p.id === socket.id)
       if (!player?.isHost) {
@@ -238,6 +257,11 @@ io.on("connection", (socket) => {
 
       if (room.players.length < 2) {
         socket.emit("error", { message: "Need at least 2 players to start" })
+        return
+      }
+
+      if (room.gameState === "playing") {
+        socket.emit("error", { message: "Game is already in progress" })
         return
       }
 
@@ -265,7 +289,7 @@ io.on("connection", (socket) => {
       startRoundTimer(roomId)
     } catch (error) {
       console.error("Start game error:", error)
-      socket.emit("error", { message: "Failed to start game" })
+      socket.emit("error", { message: "Failed to start game: " + error.message })
     }
   })
 
@@ -380,6 +404,33 @@ io.on("connection", (socket) => {
     }
   })
 
+  socket.on("get-public-rooms", () => {
+    try {
+      const publicRooms = []
+      for (const [roomId, room] of rooms.entries()) {
+        if (!room.isPrivate) {
+          publicRooms.push({
+            id: roomId,
+            name: room.name,
+            playerCount: room.players.length,
+            maxPlayers: room.maxPlayers,
+            gamePhase: room.gamePhase,
+            round: room.currentRound,
+            maxRounds: room.rounds,
+            difficulty: "mixed", // You can add this to room data
+            categories: ["Animals", "Objects"], // You can add this to room data
+            host: room.players[0]?.name || "Unknown",
+            isPrivate: room.isPrivate,
+            hasPassword: !!room.password,
+          })
+        }
+      }
+      socket.emit("public-rooms", { rooms: publicRooms })
+    } catch (error) {
+      console.error("Get public rooms error:", error)
+    }
+  })
+
   socket.on("disconnect", () => {
     try {
       const roomId = playerRooms.get(socket.id)
@@ -429,10 +480,21 @@ io.on("connection", (socket) => {
       console.error("Disconnect error:", error)
     }
   })
+
+  // Send periodic stats updates
+  setInterval(() => {
+    const stats = {
+      totalRooms: rooms.size,
+      totalPlayers: Array.from(rooms.values()).reduce((sum, room) => sum + room.players.length, 0),
+      activeGames: Array.from(rooms.values()).filter(room => room.gameState === "playing").length,
+    }
+    io.emit("server-stats", stats)
+  }, 30000) // Every 30 seconds
 })
 
 const PORT = process.env.SOCKET_PORT || 3001
 httpServer.listen(PORT, () => {
   console.log(`Socket.IO server running on port ${PORT}`)
   console.log(`WebSocket URL: ws://localhost:${PORT}`)
+  console.log("Ready to accept connections...")
 })
