@@ -33,13 +33,13 @@ export default function HomePage() {
   useEffect(() => {
     const savedName = localStorage.getItem("playerName")
     const savedAvatar = localStorage.getItem("playerAvatar")
-    
+
     if (savedName) {
       setUsername(savedName)
     }
-    
+
     if (savedAvatar) {
-      const avatarIndex = avatarOptions.findIndex(avatar => avatar.icon === savedAvatar)
+      const avatarIndex = avatarOptions.findIndex((avatar) => avatar.icon === savedAvatar)
       if (avatarIndex !== -1) {
         setSelectedAvatar(avatarIndex)
       }
@@ -65,13 +65,14 @@ export default function HomePage() {
       setError("Please enter a username first")
       return
     }
-    
+
     if (!isConnected) {
       setError("Not connected to server. Please wait and try again.")
       return
     }
 
     createRoom(roomData, playerData)
+    joinRoom(roomData.id, playerData, roomData.password)
     setShowCreateRoom(false)
   }
 
@@ -80,7 +81,7 @@ export default function HomePage() {
       setError("Please enter a username first")
       return
     }
-    
+
     if (!isConnected) {
       setError("Not connected to server. Please wait and try again.")
       return
@@ -94,12 +95,12 @@ export default function HomePage() {
       setError("Please enter a username first")
       return
     }
-    
+
     if (!roomCode.trim()) {
       setError("Please enter a room code")
       return
     }
-    
+
     if (!isConnected) {
       setError("Not connected to server. Please wait and try again.")
       return
@@ -129,11 +130,9 @@ export default function HomePage() {
           {/* Connection Status */}
           <div className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${isConnected ? "bg-green-400" : "bg-red-400"}`} />
-            <span className="text-sm text-gray-400">
-              {isConnected ? "Connected" : "Connecting..."}
-            </span>
+            <span className="text-sm text-gray-400">{isConnected ? "Connected" : "Connecting..."}</span>
           </div>
-          
+
           <Link href="/tutorial">
             <Button
               variant="ghost"
@@ -271,45 +270,15 @@ export default function HomePage() {
                 Create Room
               </Button>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-600"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-slate-800 text-gray-400">or</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <Input
-                    value={roomCode}
-                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                    placeholder="Enter room code"
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-gray-400 transition-all duration-200 focus:ring-2 focus:ring-blue-500 cursor-text"
-                    disabled={isLoading || !isConnected}
-                    maxLength={6}
-                  />
-                  <Button
-                    onClick={handleQuickJoin}
-                    disabled={!username.trim() || !roomCode.trim() || isLoading || !isConnected}
-                    variant="outline"
-                    className="border-slate-600 text-white hover:bg-slate-700 btn-press cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 bg-transparent"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Join"}
-                  </Button>
-                </div>
-
-                <Button
-                  onClick={() => setShowRoomBrowser(true)}
-                  disabled={!username.trim() || isLoading || !isConnected}
-                  variant="outline"
-                  className="w-full border-slate-600 text-white hover:bg-slate-700 hover-lift btn-press cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Search className="w-4 h-4 mr-2" />
-                  Browse Rooms
-                </Button>
-              </div>
+              <Button
+                onClick={() => setShowRoomBrowser(true)}
+                disabled={!username.trim() || isLoading || !isConnected}
+                variant="outline"
+                className="w-full border-slate-600 text-white hover:bg-slate-700 hover-lift btn-press cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 bg-transparent"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Join Room / Browse
+              </Button>
 
               {error && (
                 <div className="text-red-400 text-sm bg-red-400/10 p-3 rounded-lg animate-bounce-in border border-red-400/20">
