@@ -425,6 +425,7 @@ io.on("connection", (socket) => {
           })
         }
       }
+      console.log(publicRooms)
       socket.emit("public-rooms", { rooms: publicRooms })
     } catch (error) {
       console.error("Get public rooms error:", error)
