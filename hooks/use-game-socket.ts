@@ -62,54 +62,77 @@ export function useGameSocket() {
     }
   }, [error])
 
-  const createRoom = useCallback((roomData: any, player: any) => {
-    if (socket && isConnected && !isLoading) {
-      console.log("[GameSocket] Creating room with data:", roomData, "player:", player)
-      setIsLoading(true)
-      setError(null)
-      socket.emit("create-room", { roomData, player })
-    } else {
-      console.log("[GameSocket] Cannot create room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
+  const createRoom = useCallback(
+    (roomData: any, player: any) => {
+      if (socket && isConnected && !isLoading) {
+        console.log("[GameSocket] Creating room with data:", roomData, "player:", player)
+        setIsLoading(true)
+        setError(null)
+        socket.emit("create-room", { roomData, player })
+      } else {
+        console.log(
+          "[GameSocket] Cannot create room - socket:",
+          !!socket,
+          "loading:",
+          isLoading,
+          "connected:",
+          isConnected,
+        )
+        if (!isConnected) {
+          setError("Not connected to server. Please wait and try again.")
+        }
+      }
+    },
+    [socket, isLoading, isConnected],
+  )
+
+  const joinRoomFromHomepage = useCallback(
+    (roomId: string, player: any, password?: string) => {
       if (!isConnected) {
         setError("Not connected to server. Please wait and try again.")
+        return
       }
-    }
-  }, [socket, isLoading, isConnected])
 
-  const joinRoomFromHomepage = useCallback((roomId: string, player: any, password?: string) => {
-    if (!isConnected) {
-      setError("Not connected to server. Please wait and try again.")
-      return
-    }
+      // For homepage joins, we navigate to the game page with parameters
+      // The actual socket join will happen in the game page
+      const params = new URLSearchParams({
+        roomId,
+        playerName: player.name,
+        playerAvatar: player.avatar,
+      })
 
-    // For homepage joins, we navigate to the game page with parameters
-    // The actual socket join will happen in the game page
-    const params = new URLSearchParams({
-      roomId,
-      playerName: player.name,
-      playerAvatar: player.avatar,
-    })
-    
-    if (password) {
-      params.append('password', password)
-    }
-
-    router.push(`/game?${params.toString()}`)
-  }, [isConnected, router])
-
-  const joinRoomInGame = useCallback((roomId: string, player: any, password?: string) => {
-    if (socket && isConnected && !isLoading) {
-      console.log("[GameSocket] Attempting to join room:", roomId, "with player:", player)
-      setIsLoading(true)
-      setError(null)
-      socket.emit("join-room", { roomId, player, password })
-    } else {
-      console.log("[GameSocket] Cannot join room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
-      if (!isConnected) {
-        setError("Not connected to server. Please wait and try again.")
+      if (password) {
+        params.append("password", password)
       }
-    }
-  }, [socket, isLoading, isConnected])
+
+      router.push(`/game?${params.toString()}`)
+    },
+    [isConnected, router],
+  )
+
+  const joinRoomInGame = useCallback(
+    (roomId: string, player: any, password?: string) => {
+      if (socket && isConnected && !isLoading) {
+        console.log("[GameSocket] Attempting to join room:", roomId, "with player:", player)
+        setIsLoading(true)
+        setError(null)
+        socket.emit("join-room", { roomId, player, password })
+      } else {
+        console.log(
+          "[GameSocket] Cannot join room - socket:",
+          !!socket,
+          "loading:",
+          isLoading,
+          "connected:",
+          isConnected,
+        )
+        if (!isConnected) {
+          setError("Not connected to server. Please wait and try again.")
+        }
+      }
+    },
+    [socket, isLoading, isConnected],
+  )
 
   useEffect(() => {
     if (!socket) return
@@ -117,13 +140,13 @@ export function useGameSocket() {
     console.log("[GameSocket] Setting up socket listeners")
 
     // Room events
-    const handleRoomCreated = ({ roomId, room }: { roomId: string, room: Room }) => {
+    const handleRoomCreated = ({ roomId, room }: { roomId: string; room: Room }) => {
       console.log("[GameSocket] Room created successfully:", roomId, room)
       setRoom(room)
       setError(null)
       setIsLoading(false)
       // Navigate to the game page after successful room creation
-      router.push(`/game?roomId=${roomId}`)
+      router.push(`/game?roomId=${roomId}&playerName=${room.players[0].name}&playerAvatar=${room.players[0].avatar}`)
     }
 
     const handleRoomJoined = ({ room }: { room: Room }) => {
@@ -133,7 +156,7 @@ export function useGameSocket() {
       setIsLoading(false)
     }
 
-    const handlePlayerJoined = ({ player, players }: { player: Player, players: Player[] }) => {
+    const handlePlayerJoined = ({ player, players }: { player: Player; players: Player[] }) => {
       console.log("[GameSocket] Player joined:", player)
       setRoom((prev) => (prev ? { ...prev, players } : null))
       setChatMessages((prev) => [
@@ -148,7 +171,7 @@ export function useGameSocket() {
       ])
     }
 
-    const handlePlayerLeft = ({ player, players }: { player: Player, players: Player[] }) => {
+    const handlePlayerLeft = ({ player, players }: { player: Player; players: Player[] }) => {
       console.log("[GameSocket] Player left:", player)
       setRoom((prev) => (prev ? { ...prev, players } : null))
       setChatMessages((prev) => [
@@ -168,13 +191,13 @@ export function useGameSocket() {
       setRoom(room)
     }
 
-    const handleRoundStarted = ({ room, word, drawer }: { room: Room, word: string, drawer: Player }) => {
+    const handleRoundStarted = ({ room, word, drawer }: { room: Room; word: string; drawer: Player }) => {
       console.log("[GameSocket] Round started:", { room, word, drawer })
       setRoom(room)
     }
 
     const handleTimerUpdate = ({ timeLeft }: { timeLeft: number }) => {
-      setRoom((prev) => prev ? { ...prev, timeLeft } : null)
+      setRoom((prev) => (prev ? { ...prev, timeLeft } : null))
     }
 
     // Chat events
@@ -182,7 +205,7 @@ export function useGameSocket() {
       setChatMessages((prev) => [...prev, message])
     }
 
-    const handleCorrectGuess = ({ player, word, points }: { player: string, word: string, points: number }) => {
+    const handleCorrectGuess = ({ player, word, points }: { player: string; word: string; points: number }) => {
       setChatMessages((prev) => [
         ...prev,
         {
