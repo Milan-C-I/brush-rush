@@ -49,6 +49,7 @@ export default function GamePage() {
   const [showCustomWords, setShowCustomWords] = useState(false)
   const [revealedLetters, setRevealedLetters] = useState<boolean[]>([])
   const [hasTriedJoining, setHasTriedJoining] = useState(false)
+  const [connectionRetries, setConnectionRetries] = useState(0)
 
   const canvasRef = useRef<any>(null)
 
@@ -65,36 +66,47 @@ export default function GamePage() {
     kickPlayer,
     startGame,
     joinRoom,
+    setError,
   } = useGameSocket()
 
-  // Auto-join room when connected and room ID is available
+  // Wait for connection before attempting to join
   useEffect(() => {
-    console.log("[GamePage] Effect triggered:", { 
-      roomId, 
-      isConnected, 
-      hasRoom: !!room, 
-      hasTriedJoining,
-      isLoading 
-    })
-
+    console.log("[GamePage] Connection status changed:", { isConnected, roomId, room: !!room, hasTriedJoining })
+    
     if (roomId && isConnected && !room && !hasTriedJoining && !isLoading) {
       const playerData = {
+        id: socket?.id || Date.now().toString(),
         name: localStorage.getItem("playerName") || `Player_${Math.random().toString(36).substr(2, 4)}`,
         avatar: localStorage.getItem("playerAvatar") || "🎨",
       }
 
       console.log("[GamePage] Auto-joining room:", roomId, "with player:", playerData)
       setHasTriedJoining(true)
+      setConnectionRetries(0)
       joinRoom(roomId, playerData)
     }
-  }, [roomId, isConnected, room, hasTriedJoining, isLoading, joinRoom])
+  }, [roomId, isConnected, room, hasTriedJoining, isLoading, joinRoom, socket?.id])
 
   // Reset join attempt when connection changes
   useEffect(() => {
     if (!isConnected) {
+      console.log("[GamePage] Connection lost, resetting join attempt")
       setHasTriedJoining(false)
     }
   }, [isConnected])
+
+  // Handle connection retries
+  useEffect(() => {
+    if (!isConnected && roomId && connectionRetries < 3) {
+      const timer = setTimeout(() => {
+        console.log(`[GamePage] Retrying connection... Attempt ${connectionRetries + 1}`)
+        setConnectionRetries(prev => prev + 1)
+        setHasTriedJoining(false)
+      }, 2000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [isConnected, roomId, connectionRetries])
 
   const currentPlayer = room?.players.find((p) => p.id === socket?.id)
   const isDrawer = currentPlayer?.isDrawing || false
@@ -131,25 +143,56 @@ export default function GamePage() {
   }
 
   const handleRetryConnection = () => {
+    console.log("[GamePage] Manual retry requested")
     setHasTriedJoining(false)
+    setConnectionRetries(0)
+    setError(null)
     window.location.reload()
   }
 
   // Loading state - connecting to server
-  if (!isConnected) {
+  if (!isConnected && connectionRetries < 3) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-xl">Connecting to game server...</p>
-          <p className="text-sm text-gray-400 mt-2">Make sure the socket server is running on port 3001</p>
+          <p className="text-xl mb-2">Connecting to game server...</p>
+          <p className="text-sm text-gray-400 mb-4">
+            {connectionRetries > 0 && `Retry attempt ${connectionRetries}/3`}
+          </p>
+          <p className="text-sm text-gray-400 mb-4">Make sure the socket server is running on port 3001</p>
           <Button 
             onClick={handleRetryConnection} 
-            className="mt-4 cursor-pointer"
+            className="cursor-pointer"
             variant="outline"
           >
             Retry Connection
           </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Connection failed after retries
+  if (!isConnected && connectionRetries >= 3) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl mb-4 text-red-400">Failed to connect to game server</p>
+          <p className="text-sm text-gray-400 mb-4">Please check if the server is running and try again</p>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => (window.location.href = "/")} className="cursor-pointer">
+              <Home className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+            <Button 
+              onClick={handleRetryConnection} 
+              className="cursor-pointer"
+              variant="outline"
+            >
+              Try Again
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -180,8 +223,8 @@ export default function GamePage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl mb-4">
-            {error ? `Error: ${error}` : `Room ${roomId} not found`}
+          <p className="text-xl mb-4 text-red-400">
+            {error || `Room ${roomId} not found`}
           </p>
           <div className="flex gap-2 justify-center">
             <Button onClick={() => (window.location.href = "/")} className="cursor-pointer">
@@ -429,7 +472,7 @@ export default function GamePage() {
           <div className="p-4 border-b border-slate-700/50">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-300">
-                Round {room?.currentRound || 0} of {room?.round || 0}
+                Round {room?.currentRound || 0} of {room?.rounds || 0}
               </h3>
               <Badge variant="secondary" className="bg-green-500/20 text-green-400">
                 {room?.gameState === "playing" ? "Playing" : room?.gameState === "waiting" ? "Waiting" : "Finished"}
@@ -491,11 +534,28 @@ export default function GamePage() {
 
       {/* Error Display */}
       {error && (
-        <div className="fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg">
-          {error}
-          <Button variant="ghost" size="sm" onClick={handleRetryConnection} className="ml-2 cursor-pointer">
-            Retry
-          </Button>
+        <div className="fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50">
+          <div className="flex items-center justify-between">
+            <span>{error}</span>
+            <div className="flex gap-2 ml-4">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleRetryConnection} 
+                className="text-white hover:bg-red-600 cursor-pointer"
+              >
+                Retry
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setError(null)} 
+                className="text-white hover:bg-red-600 cursor-pointer"
+              >
+                ×
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

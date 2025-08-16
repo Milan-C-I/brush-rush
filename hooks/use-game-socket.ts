@@ -11,8 +11,8 @@ export interface Room {
   isPrivate: boolean
   password?: string
   customWords: string[]
-  rounds: number // Changed from maxRounds to match server
-  drawTime: number // Added to match server
+  rounds: number
+  drawTime: number
   gamePhase: "waiting" | "drawing"
   currentWordCategory: string
   currentWordIsCustom: boolean
@@ -63,28 +63,46 @@ export function useGameSocket() {
   }, [error])
 
   const joinRoom = useCallback((roomId: string, player: any, password?: string) => {
-    if (socket && !isLoading && isConnected) {
+    if (socket && isConnected && !isLoading) {
       console.log("[GameSocket] Attempting to join room:", roomId, "with player:", player)
       setIsLoading(true)
       setError(null)
       socket.emit("join-room", { roomId, player, password })
     } else {
       console.log("[GameSocket] Cannot join room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
+      if (!isConnected) {
+        setError("Not connected to server. Please wait and try again.")
+      }
+    }
+  }, [socket, isLoading, isConnected])
+
+  const createRoom = useCallback((roomData: any, player: any) => {
+    if (socket && isConnected && !isLoading) {
+      console.log("[GameSocket] Creating room with data:", roomData, "player:", player)
+      setIsLoading(true)
+      setError(null)
+      socket.emit("create-room", { roomData, player })
+    } else {
+      console.log("[GameSocket] Cannot create room - socket:", !!socket, "loading:", isLoading, "connected:", isConnected)
+      if (!isConnected) {
+        setError("Not connected to server. Please wait and try again.")
+      }
     }
   }, [socket, isLoading, isConnected])
 
   useEffect(() => {
-    if (!socket || !isConnected) return
+    if (!socket) return
 
     console.log("[GameSocket] Setting up socket listeners")
 
     // Room events
     const handleRoomCreated = ({ roomId, room }: { roomId: string, room: Room }) => {
-      console.log("[GameSocket] Room created:", roomId, room)
+      console.log("[GameSocket] Room created successfully:", roomId, room)
       setRoom(room)
       setError(null)
       setIsLoading(false)
-      // Don't navigate here as it might cause issues
+      // Navigate to the game page after successful room creation
+      router.push(`/game?roomId=${roomId}`)
     }
 
     const handleRoomJoined = ({ room }: { room: Room }) => {
@@ -159,10 +177,11 @@ export function useGameSocket() {
     // Drawing events
     const handleDrawingEvent = (event: any) => {
       // Forward to canvas if needed
+      console.log("[GameSocket] Drawing event received:", event)
     }
 
     const handleCanvasCleared = () => {
-      // Clear canvas if needed
+      console.log("[GameSocket] Canvas cleared")
     }
 
     // Error handling
@@ -218,15 +237,7 @@ export function useGameSocket() {
       socket.off("kicked", handleKicked)
       socket.off("game-finished", handleGameFinished)
     }
-  }, [socket, isConnected, router])
-
-  const createRoom = (roomData: any, player: any) => {
-    if (socket && !isLoading && isConnected) {
-      setIsLoading(true)
-      setError(null)
-      socket.emit("create-room", { roomData, player })
-    }
-  }
+  }, [socket, router])
 
   const startGame = () => {
     if (socket && room && isConnected) {
