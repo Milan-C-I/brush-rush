@@ -58,6 +58,7 @@ export default function GamePage() {
   const [revealedLetters, setRevealedLetters] = useState<boolean[]>([])
   const [hasTriedJoining, setHasTriedJoining] = useState(false)
   const [connectionRetries, setConnectionRetries] = useState(0)
+  // const [wasRestarted, setWasRestarted] = useState(false)
 
   const canvasRef = useRef<any>(null)
 
@@ -124,14 +125,6 @@ export default function GamePage() {
     }
   }, [isConnected, roomId, connectionRetries])
 
-  // Show winner display when game finishes
-  useEffect(() => {
-    if (room?.gameState === "finished") {
-      setShowWinner(true)
-    } else {
-      setShowWinner(false)
-    }
-  }, [room?.gameState])
 
   const currentPlayer = room?.players.find((p) => p.id === socket?.id)
   const isDrawer = currentPlayer?.isDrawing || false
@@ -168,7 +161,13 @@ export default function GamePage() {
   }
 
   const handleUpdateRoom = (roomData: any) => {
-    updateRoom(roomData)
+    if (room?.gameState === "finished") {
+      // If called from winner screen, restart the game
+      restartGame(roomData)
+    } else {
+      // Otherwise, just update room settings
+      updateRoom(roomData)
+    }
     setShowUpdateRoom(false)
   }
 

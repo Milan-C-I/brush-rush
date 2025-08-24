@@ -71,6 +71,31 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       saveState()
     }, [])
 
+    // Listen for remote drawing events and canvas clear events
+    useEffect(() => {
+      const handleRemoteDrawingEvent = (event: CustomEvent) => {
+        applyDrawingEvent(event.detail)
+      }
+
+      const handleRemoteCanvasCleared = () => {
+        clearCanvas()
+      }
+
+      const handleNewRoundClear = () => {
+        clearCanvas()
+      }
+
+      window.addEventListener('remote-drawing-event', handleRemoteDrawingEvent as EventListener)
+      window.addEventListener('remote-canvas-cleared', handleRemoteCanvasCleared)
+      window.addEventListener('clear-canvas-new-round', handleNewRoundClear)
+
+      return () => {
+        window.removeEventListener('remote-drawing-event', handleRemoteDrawingEvent as EventListener)
+        window.removeEventListener('remote-canvas-cleared', handleRemoteCanvasCleared)
+        window.removeEventListener('clear-canvas-new-round', handleNewRoundClear)
+      }
+    }, [])
+
     useEffect(() => {
       onUndoRedoChange?.(undoStack.length > 1, redoStack.length > 0)
     }, [undoStack.length, redoStack.length, onUndoRedoChange])
@@ -107,6 +132,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       context.beginPath()
       context.moveTo(x, y)
 
+      // Send drawing event to other players
       onDrawingEvent?.({
         type: "start",
         x,
@@ -132,6 +158,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       context.lineTo(x, y)
       context.stroke()
 
+      // Send drawing event to other players
       onDrawingEvent?.({
         type: "draw",
         x,
@@ -150,6 +177,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       onDrawingEnd?.()
       saveState()
 
+      // Send end drawing event
       onDrawingEvent?.({
         type: "end",
         x: 0,
@@ -165,6 +193,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       const context = contextRef.current
       if (!context) return
 
+      // Apply the same drawing properties as the drawer
       context.globalCompositeOperation = event.tool === "eraser" ? "destination-out" : "source-over"
       context.strokeStyle = event.tool === "eraser" ? "rgba(0,0,0,1)" : event.color
       context.lineWidth = event.size
@@ -182,6 +211,19 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
         setRemoteDrawingPath([])
         // Don't save state for remote events to avoid conflicts
       }
+    }
+
+    const clearCanvas = () => {
+      const canvas = canvasRef.current
+      const context = contextRef.current
+      if (!canvas || !context) return
+
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      // Reset undo/redo stacks when clearing
+      setUndoStack([])
+      setRedoStack([])
+      // Save the cleared state
+      setTimeout(() => saveState(), 0)
     }
 
     const undo = () => {
@@ -215,12 +257,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
     }
 
     const clear = () => {
-      const canvas = canvasRef.current
-      const context = contextRef.current
-      if (!canvas || !context) return
-
-      context.clearRect(0, 0, canvas.width, canvas.height)
-      saveState()
+      clearCanvas()
     }
 
     const getImageData = () => {

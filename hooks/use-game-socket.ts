@@ -53,6 +53,8 @@ export function useGameSocket() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [wasRestarted, setWasRestarted] = useState(false)
+  const [showWinner, setShowWinner] = useState(false)
 
   // Clear error after some time
   useEffect(() => {
@@ -61,6 +63,16 @@ export function useGameSocket() {
       return () => clearTimeout(timer)
     }
   }, [error])
+
+   // Show winner display when game finishes
+  useEffect(() => {
+    if (room?.gameState === "finished" && !wasRestarted) {
+      setShowWinner(true)
+    } else if (room?.gameState === "waiting" && wasRestarted) {
+      setWasRestarted(false)
+      setShowWinner(false)
+    }
+  }, [room?.gameState, wasRestarted])
 
   const createRoom = useCallback(
     (roomData: any, player: any) => {
@@ -109,6 +121,8 @@ export function useGameSocket() {
         console.log("[GameSocket] Restarting game with settings:", roomData)
         setIsLoading(true)
         setError(null)
+        setWasRestarted(true) // Add this line
+        setChatMessages([]) // Clear chat messages
         socket.emit("restart-game", { roomId: room.id, roomData })
       } else {
         console.log("[GameSocket] Cannot restart game - not connected or no room")
@@ -205,13 +219,16 @@ export function useGameSocket() {
       setRoom(room)
       setError(null)
       setIsLoading(false)
+      // Clear chat messages on restart and add restart message
       setChatMessages([{
         id: Date.now(),
         player: "System",
-        message: "🎮 Game has been restarted! Get ready for a new round!",
+        message: "🎮 Game has been restarted! Waiting for players...",
         type: "system",
         timestamp: Date.now(),
       }])
+      // Clear the canvas when game restarts
+      window.dispatchEvent(new CustomEvent('clear-canvas-new-round'))
     }
 
     const handleRoomJoined = ({ room }: { room: Room }) => {
@@ -254,14 +271,53 @@ export function useGameSocket() {
     const handleGameStarted = ({ room }: { room: Room }) => {
       console.log("[GameSocket] Game started:", room)
       setRoom(room)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          player: "System",
+          message: "🎮 Game started! Good luck everyone!",
+          type: "system",
+          timestamp: Date.now(),
+        },
+      ])
     }
 
     const handleRoundStarted = ({ room, word, drawer }: { room: Room; word: string; drawer: Player }) => {
       console.log("[GameSocket] Round started:", { room, word, drawer })
       setRoom(room)
       
+      // Add round start message
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          player: "System",
+          message: `🎨 Round ${room.currentRound} started! ${drawer.name} is drawing now.`,
+          type: "system",
+          timestamp: Date.now(),
+        },
+      ])
+      
       // Clear canvas for all players at the start of each round
       window.dispatchEvent(new CustomEvent('clear-canvas-new-round'))
+    }
+
+    const handleRoundEnded = ({ room, word }: { room: Room; word: string }) => {
+      console.log("[GameSocket] Round ended:", { room, word })
+      setRoom(room)
+      
+      // Add round end message
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          player: "System",
+          message: `⏰ Round ${room.currentRound} ended! The word was: "${word}"`,
+          type: "system",
+          timestamp: Date.now(),
+        },
+      ])
     }
 
     const handleTimerUpdate = ({ timeLeft }: { timeLeft: number }) => {
@@ -279,11 +335,22 @@ export function useGameSocket() {
         {
           id: Date.now(),
           player: "System",
-          message: `${player} guessed "${word}" correctly! (+${points} points)`,
+          message: `🎯 ${player} guessed "${word}" correctly! (+${points} points)`,
           type: "system",
           timestamp: Date.now(),
         },
       ])
+      
+      // Update room state to reflect the correct guess
+      setRoom((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          players: prev.players.map(p => 
+            p.name === player ? { ...p, hasGuessed: true, score: p.score + points } : p
+          )
+        }
+      })
     }
 
     // Drawing events - using custom events for canvas communication
@@ -338,6 +405,7 @@ export function useGameSocket() {
     socket.on("player-left", handlePlayerLeft)
     socket.on("game-started", handleGameStarted)
     socket.on("round-started", handleRoundStarted)
+    socket.on("round-ended", handleRoundEnded)
     socket.on("timer-update", handleTimerUpdate)
     socket.on("chat-message", handleChatMessage)
     socket.on("correct-guess", handleCorrectGuess)
@@ -357,6 +425,7 @@ export function useGameSocket() {
       socket.off("player-left", handlePlayerLeft)
       socket.off("game-started", handleGameStarted)
       socket.off("round-started", handleRoundStarted)
+      socket.off("round-ended", handleRoundEnded)
       socket.off("timer-update", handleTimerUpdate)
       socket.off("chat-message", handleChatMessage)
       socket.off("correct-guess", handleCorrectGuess)
@@ -388,12 +457,14 @@ export function useGameSocket() {
 
   const sendDrawingEvent = (event: any) => {
     if (socket && room && isConnected) {
+      console.log("[GameSocket] Sending drawing event:", event.type)
       socket.emit("drawing-event", { roomId: room.id, event })
     }
   }
 
   const clearCanvas = () => {
     if (socket && room && isConnected) {
+      console.log("[GameSocket] Sending clear canvas event")
       socket.emit("clear-canvas", { roomId: room.id })
     }
   }

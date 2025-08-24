@@ -137,21 +137,30 @@ const endRound = (roomId) => {
   const room = rooms.get(roomId)
   if (!room) return
 
-  // Reset drawing status
+  // Emit round ended event with the word
+  io.to(roomId).emit("round-ended", { 
+    room, 
+    word: room.currentWord 
+  })
+
+  // Reset drawing status for all players
   room.players.forEach((player) => {
     player.isDrawing = false
+    player.hasGuessed = false // Reset for next round
   })
 
   room.currentRound++
 
-  if (room.currentRound >= room.rounds) {
+  if (room.currentRound > room.rounds) {
     // Game finished
     room.gameState = "finished"
     room.gamePhase = "waiting"
     io.to(roomId).emit("game-finished", { room })
   } else {
-    // Start next round
-    startNextRound(roomId)
+    // Start next round after a short delay
+    setTimeout(() => {
+      startNextRound(roomId)
+    }, 2000) // 2 second delay between rounds
   }
 }
 
@@ -395,8 +404,8 @@ io.on("connection", (socket) => {
       socket.emit("room-joined", { room })
       socket.to(roomId).emit("player-joined", { player: newPlayer, players: room.players })
 
-      // Send existing drawing data to new player
-      if (room.drawingData.length > 0) {
+      // Send existing drawing data to new player if game is in progress
+      if (room.gameState === "playing" && room.drawingData.length > 0) {
         room.drawingData.forEach(event => {
           socket.emit("drawing-event", event)
         })
@@ -502,6 +511,7 @@ io.on("connection", (socket) => {
         const allGuessed = nonDrawerPlayers.every((p) => p.hasGuessed)
 
         if (allGuessed) {
+          // All players guessed correctly, end round immediately
           if (roomTimers.has(roomId)) {
             clearInterval(roomTimers.get(roomId))
             roomTimers.delete(roomId)
@@ -509,6 +519,7 @@ io.on("connection", (socket) => {
           endRound(roomId)
         }
       } else {
+        // Regular chat message
         io.to(roomId).emit("chat-message", chatMessage)
       }
     } catch (error) {
@@ -529,7 +540,6 @@ io.on("connection", (socket) => {
       
       // Broadcast to all other players in the room
       socket.to(roomId).emit("drawing-event", event)
-      console.log(event)
       
       console.log(`[Server] Drawing event ${event.type} broadcasted to room ${roomId}`)
     } catch (error) {
