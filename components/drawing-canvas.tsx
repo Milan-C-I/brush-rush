@@ -12,6 +12,7 @@ interface DrawingCanvasProps {
   onDrawingEnd?: () => void
   onUndoRedoChange?: (canUndo: boolean, canRedo: boolean) => void
   onDrawingEvent?: (event: any) => void
+  onRemoteDrawingEvent?: (event: any) => void
   disabled?: boolean
 }
 
@@ -34,6 +35,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       onDrawingEnd,
       onUndoRedoChange,
       onDrawingEvent,
+      onRemoteDrawingEvent,
       disabled = false,
     },
     ref,
@@ -43,6 +45,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
     const [isDrawing, setIsDrawing] = useState(false)
     const [undoStack, setUndoStack] = useState<ImageData[]>([])
     const [redoStack, setRedoStack] = useState<ImageData[]>([])
+    const [remoteDrawingPath, setRemoteDrawingPath] = useState<{x: number, y: number}[]>([])
 
     useEffect(() => {
       const canvas = canvasRef.current
@@ -170,9 +173,14 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
       if (event.type === "start") {
         context.beginPath()
         context.moveTo(event.x, event.y)
+        setRemoteDrawingPath([{x: event.x, y: event.y}])
       } else if (event.type === "draw") {
         context.lineTo(event.x, event.y)
         context.stroke()
+        setRemoteDrawingPath(prev => [...prev, {x: event.x, y: event.y}])
+      } else if (event.type === "end") {
+        setRemoteDrawingPath([])
+        // Don't save state for remote events to avoid conflicts
       }
     }
 

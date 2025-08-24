@@ -22,6 +22,7 @@ import {
   Volume2,
   VolumeX,
   Plus,
+  Edit3,
 } from "lucide-react"
 import { DrawingCanvas } from "@/components/drawing-canvas"
 import { ColorPicker } from "@/components/color-picker"
@@ -30,6 +31,8 @@ import { GameChat } from "@/components/game-chat"
 import { PlayersList } from "@/components/players-list"
 import { WordDisplay } from "@/components/word-display"
 import { CustomWordsManager } from "@/components/custom-words-manager"
+import { UpdateRoomModal } from "@/components/update-room-modal"
+import { WinnerDisplay } from "@/components/winner-display"
 import { useGameSocket } from "@/hooks/use-game-socket"
 
 export default function GamePage() {
@@ -50,6 +53,8 @@ export default function GamePage() {
   const [isMuted, setIsMuted] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showCustomWords, setShowCustomWords] = useState(false)
+  const [showUpdateRoom, setShowUpdateRoom] = useState(false)
+  const [showWinner, setShowWinner] = useState(false)
   const [revealedLetters, setRevealedLetters] = useState<boolean[]>([])
   const [hasTriedJoining, setHasTriedJoining] = useState(false)
   const [connectionRetries, setConnectionRetries] = useState(0)
@@ -68,6 +73,8 @@ export default function GamePage() {
     clearCanvas: clearCanvasSocket,
     kickPlayer,
     startGame,
+    updateRoom,
+    restartGame,
     joinRoomInGame,
     setError,
   } = useGameSocket()
@@ -117,6 +124,15 @@ export default function GamePage() {
     }
   }, [isConnected, roomId, connectionRetries])
 
+  // Show winner display when game finishes
+  useEffect(() => {
+    if (room?.gameState === "finished") {
+      setShowWinner(true)
+    } else {
+      setShowWinner(false)
+    }
+  }, [room?.gameState])
+
   const currentPlayer = room?.players.find((p) => p.id === socket?.id)
   const isDrawer = currentPlayer?.isDrawing || false
   const isHost = room?.players[0]?.id === socket?.id
@@ -151,12 +167,38 @@ export default function GamePage() {
     sendDrawingEvent(event)
   }
 
+  const handleUpdateRoom = (roomData: any) => {
+    updateRoom(roomData)
+    setShowUpdateRoom(false)
+  }
+
+  const handlePlayAgain = () => {
+    if (isHost) {
+      // Show update room modal before restarting
+      setShowUpdateRoom(true)
+      setShowWinner(false)
+    }
+  }
+
+  const handleGoHome = () => {
+    window.location.href = "/"
+  }
+
   const handleRetryConnection = () => {
     console.log("[GamePage] Manual retry requested")
     setHasTriedJoining(false)
     setConnectionRetries(0)
     setError(null)
     window.location.reload()
+  }
+
+  const getGameStats = () => {
+    if (!room) return undefined
+    return {
+      totalRounds: room.rounds,
+      totalDrawTime: room.drawTime * room.rounds,
+      averageGuessTime: Math.floor(Math.random() * 30) + 10, // Mock data - replace with real data
+    }
   }
 
   // Check if we have required parameters
@@ -272,6 +314,19 @@ export default function GamePage() {
     )
   }
 
+  // Winner Display - Show when game is finished
+  if (showWinner && room?.players) {
+    return (
+      <WinnerDisplay
+        players={room.players}
+        onPlayAgain={handlePlayAgain}
+        onGoHome={handleGoHome}
+        isHost={isHost}
+        gameStats={getGameStats()}
+      />
+    )
+  }
+
   // Main game interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
@@ -321,6 +376,19 @@ export default function GamePage() {
               disabled={room?.players.length < 2}
             >
               Start Game
+            </Button>
+          )}
+
+          {/* Update Room Settings (Host Only) */}
+          {isHost && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowUpdateRoom(true)}
+              className="text-gray-300 hover:text-white cursor-pointer"
+              title="Update Room Settings"
+            >
+              <Edit3 className="w-4 h-4" />
             </Button>
           )}
 
@@ -568,6 +636,16 @@ export default function GamePage() {
           setBrushSize={setBrushSize}
           brushOpacity={brushOpacity}
           setBrushOpacity={setBrushOpacity}
+        />
+      )}
+
+      {/* Update Room Modal */}
+      {showUpdateRoom && isHost && room && (
+        <UpdateRoomModal
+          onClose={() => setShowUpdateRoom(false)}
+          onUpdateRoom={handleUpdateRoom}
+          currentRoom={room}
+          isHost={isHost}
         />
       )}
 

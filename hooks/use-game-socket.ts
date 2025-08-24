@@ -86,6 +86,40 @@ export function useGameSocket() {
     [socket, isLoading, isConnected],
   )
 
+  const updateRoom = useCallback(
+    (roomData: any) => {
+      if (socket && isConnected && room) {
+        console.log("[GameSocket] Updating room settings:", roomData)
+        setIsLoading(true)
+        setError(null)
+        socket.emit("update-room", roomData)
+      } else {
+        console.log("[GameSocket] Cannot update room - not connected or no room")
+        if (!isConnected) {
+          setError("Not connected to server. Please wait and try again.")
+        }
+      }
+    },
+    [socket, isConnected, room],
+  )
+
+  const restartGame = useCallback(
+    (roomData?: any) => {
+      if (socket && isConnected && room) {
+        console.log("[GameSocket] Restarting game with settings:", roomData)
+        setIsLoading(true)
+        setError(null)
+        socket.emit("restart-game", { roomId: room.id, roomData })
+      } else {
+        console.log("[GameSocket] Cannot restart game - not connected or no room")
+        if (!isConnected) {
+          setError("Not connected to server. Please wait and try again.")
+        }
+      }
+    },
+    [socket, isConnected, room],
+  )
+
   const joinRoomFromHomepage = useCallback(
     (roomId: string, player: any, password?: string) => {
       if (!isConnected) {
@@ -149,6 +183,37 @@ export function useGameSocket() {
       router.push(`/game?roomId=${roomId}&playerName=${room.players[0].name}&playerAvatar=${room.players[0].avatar}`)
     }
 
+    const handleRoomUpdated = ({ room }: { room: Room }) => {
+      console.log("[GameSocket] Room settings updated:", room)
+      setRoom(room)
+      setError(null)
+      setIsLoading(false)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          player: "System",
+          message: "Room settings have been updated by the host",
+          type: "system",
+          timestamp: Date.now(),
+        },
+      ])
+    }
+
+    const handleGameRestarted = ({ room }: { room: Room }) => {
+      console.log("[GameSocket] Game restarted:", room)
+      setRoom(room)
+      setError(null)
+      setIsLoading(false)
+      setChatMessages([{
+        id: Date.now(),
+        player: "System",
+        message: "🎮 Game has been restarted! Get ready for a new round!",
+        type: "system",
+        timestamp: Date.now(),
+      }])
+    }
+
     const handleRoomJoined = ({ room }: { room: Room }) => {
       console.log("[GameSocket] Room joined successfully:", room)
       setRoom(room)
@@ -194,6 +259,9 @@ export function useGameSocket() {
     const handleRoundStarted = ({ room, word, drawer }: { room: Room; word: string; drawer: Player }) => {
       console.log("[GameSocket] Round started:", { room, word, drawer })
       setRoom(room)
+      
+      // Clear canvas for all players at the start of each round
+      window.dispatchEvent(new CustomEvent('clear-canvas-new-round'))
     }
 
     const handleTimerUpdate = ({ timeLeft }: { timeLeft: number }) => {
@@ -218,14 +286,17 @@ export function useGameSocket() {
       ])
     }
 
-    // Drawing events
+    // Drawing events - using custom events for canvas communication
     const handleDrawingEvent = (event: any) => {
-      // Forward to canvas if needed
-      console.log("[GameSocket] Drawing event received:", event)
+      console.log("[GameSocket] Drawing event received:", event.type)
+      // Dispatch custom event that the canvas can listen to
+      window.dispatchEvent(new CustomEvent('remote-drawing-event', { detail: event }))
     }
 
     const handleCanvasCleared = () => {
-      console.log("[GameSocket] Canvas cleared")
+      console.log("[GameSocket] Canvas cleared by remote user")
+      // Dispatch custom event for canvas clearing
+      window.dispatchEvent(new CustomEvent('remote-canvas-cleared'))
     }
 
     // Error handling
@@ -246,10 +317,22 @@ export function useGameSocket() {
     const handleGameFinished = ({ room }: { room: Room }) => {
       console.log("[GameSocket] Game finished:", room)
       setRoom(room)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          player: "System",
+          message: "🎉 Game finished! Check out the final scores!",
+          type: "system",
+          timestamp: Date.now(),
+        },
+      ])
     }
 
     // Register all event listeners
     socket.on("room-created", handleRoomCreated)
+    socket.on("room-updated", handleRoomUpdated)
+    socket.on("game-restarted", handleGameRestarted)
     socket.on("room-joined", handleRoomJoined)
     socket.on("player-joined", handlePlayerJoined)
     socket.on("player-left", handlePlayerLeft)
@@ -267,6 +350,8 @@ export function useGameSocket() {
     return () => {
       console.log("[GameSocket] Cleaning up socket listeners")
       socket.off("room-created", handleRoomCreated)
+      socket.off("room-updated", handleRoomUpdated)
+      socket.off("game-restarted", handleGameRestarted)
       socket.off("room-joined", handleRoomJoined)
       socket.off("player-joined", handlePlayerJoined)
       socket.off("player-left", handlePlayerLeft)
@@ -321,6 +406,8 @@ export function useGameSocket() {
     error,
     isLoading,
     createRoom,
+    updateRoom,
+    restartGame,
     joinRoom: joinRoomFromHomepage, // For homepage usage
     joinRoomInGame, // For game page usage
     startGame,
