@@ -441,6 +441,8 @@ export default function GamePage() {
             />
           )}
 
+
+          {/* Players List */}
           {/* Drawing Tools */}
           <Card className="bg-slate-700/50 border-slate-600">
             <CardHeader className="pb-3">
@@ -540,8 +542,6 @@ export default function GamePage() {
               </Button>
             </CardContent>
           </Card>
-
-          {/* Players List */}
           <PlayersList
             players={room?.players || []}
             onKickPlayer={kickPlayer}
@@ -603,7 +603,7 @@ export default function GamePage() {
           </div>
 
           {/* Chat */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex overflow-y-hidden flex-col">
             <GameChat messages={chatMessages} currentPlayer={currentPlayer?.name || "You"} isDrawer={isDrawer} />
 
             {/* Chat Input */}

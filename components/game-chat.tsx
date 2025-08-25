@@ -32,12 +32,12 @@ export function GameChat({ messages, currentPlayer, isDrawer }: GameChatProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-clip">
+    <div className="flex-1 flex overflow-y-scroll flex-col">
       <div className="p-4 border-b border-slate-700/50">
         <h3 className="text-sm font-medium text-gray-300">Game Chat</h3>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 p-4 space-y-3">
         {messages.map((message,index) => (
           <div key={index} className="flex gap-3">
             <Avatar className="w-6 h-6 mt-1">
