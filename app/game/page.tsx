@@ -130,6 +130,9 @@ export default function GamePage() {
   const isDrawer = currentPlayer?.isDrawing || false
   const isHost = room?.players[0]?.id === socket?.id
 
+
+  const shouldShowWinner = room?.gameState === "finished"
+
   const handleUndo = () => {
     if (canvasRef.current) {
       canvasRef.current.undo()
@@ -174,8 +177,9 @@ export default function GamePage() {
   const handlePlayAgain = () => {
     if (isHost) {
       // Show update room modal before restarting
-      setShowUpdateRoom(true)
-      setShowWinner(false)
+      // setShowUpdateRoom(true)
+      // setShowWinner(false)
+      restartGame(room)
     }
   }
 
@@ -314,7 +318,7 @@ export default function GamePage() {
   }
 
   // Winner Display - Show when game is finished
-  if (showWinner && room?.players) {
+  if (shouldShowWinner && room?.players) {
     return (
       <WinnerDisplay
         players={room.players}
