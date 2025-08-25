@@ -277,7 +277,7 @@ export const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(
     return (
       <canvas
         ref={canvasRef}
-        className={`w-full h-full ${disabled ? "cursor-not-allowed opacity-50" : "cursor-crosshair"}`}
+        className={`w-full h-full ${disabled ? "cursor-not-allowed" : "cursor-crosshair"}`}
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { X, Settings, Lock, Globe, RefreshCw } from "lucide-react"
+import { X, Settings, Lock, Globe, RefreshCw, Play } from "lucide-react"
 import { Room } from "@/hooks/use-game-socket"
 
 interface UpdateRoomModalProps {
@@ -16,9 +16,10 @@ interface UpdateRoomModalProps {
   onUpdateRoom: (roomData: any) => void
   currentRoom: Room
   isHost: boolean
+  isRestarting?: boolean // New prop to indicate if this is for restarting
 }
 
-export function UpdateRoomModal({ onClose, onUpdateRoom, currentRoom, isHost }: UpdateRoomModalProps) {
+export function UpdateRoomModal({ onClose, onUpdateRoom, currentRoom, isHost, isRestarting = false }: UpdateRoomModalProps) {
   const [isPrivate, setIsPrivate] = useState(currentRoom?.isPrivate || false)
   const [password, setPassword] = useState(currentRoom?.password || "")
   const [maxPlayers, setMaxPlayers] = useState([currentRoom?.maxPlayers || 8])
@@ -84,14 +85,26 @@ export function UpdateRoomModal({ onClose, onUpdateRoom, currentRoom, isHost }: 
     onUpdateRoom(roomData)
   }
 
-  const handleRestartGame = () => {
+  const handleQuickRestart = () => {
     if (!isHost) {
       alert("Only the host can restart the game")
       return
     }
 
-    // Update room settings and restart
-    handleUpdateRoom()
+    // Use current settings for quick restart
+    const roomData = {
+      roomId: currentRoom.id,
+      isPrivate: currentRoom.isPrivate,
+      password: currentRoom.password,
+      maxPlayers: currentRoom.maxPlayers,
+      rounds: currentRoom.rounds,
+      drawTime: currentRoom.drawTime,
+      customWords: currentRoom.customWords,
+      categories: selectedCategories.length > 0 ? selectedCategories : ["Animals", "Objects", "Food", "Nature"],
+      difficulty: currentRoom.difficulty || "mixed",
+    }
+
+    onUpdateRoom(roomData)
   }
 
   if (!isHost) {
@@ -120,8 +133,17 @@ export function UpdateRoomModal({ onClose, onUpdateRoom, currentRoom, isHost }: 
       <Card className="w-full max-w-2xl bg-slate-800 border-slate-700 max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2">
-            <Settings className="w-5 h-5 text-blue-400" />
-            Update Room Settings
+            {isRestarting ? (
+              <>
+                <RefreshCw className="w-5 h-5 text-green-400" />
+                New Game Settings
+              </>
+            ) : (
+              <>
+                <Settings className="w-5 h-5 text-blue-400" />
+                Update Room Settings
+              </>
+            )}
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose} className="cursor-pointer hover:bg-slate-700">
             <X className="w-4 h-4" />
@@ -129,6 +151,31 @@ export function UpdateRoomModal({ onClose, onUpdateRoom, currentRoom, isHost }: 
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {isRestarting && (
+            <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+              <h4 className="text-sm font-medium text-green-300 mb-2">🎮 Starting New Game</h4>
+              <p className="text-sm text-gray-300">
+                Configure settings for your next game or use current settings to start immediately.
+              </p>
+            </div>
+          )}
+
+          {/* Quick Restart Option */}
+          {isRestarting && (
+            <div className="flex gap-3">
+              <Button
+                onClick={handleQuickRestart}
+                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 cursor-pointer"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Quick Restart (Current Settings)
+              </Button>
+              <div className="flex items-center text-sm text-gray-400">
+                or customize below
+              </div>
+            </div>
+          )}
+
           {/* Basic Settings */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -251,7 +298,9 @@ export function UpdateRoomModal({ onClose, onUpdateRoom, currentRoom, isHost }: 
 
           {/* Preview */}
           <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <h4 className="text-sm font-medium text-blue-300 mb-2">Updated Settings Preview</h4>
+            <h4 className="text-sm font-medium text-blue-300 mb-2">
+              {isRestarting ? "New Game Preview" : "Updated Settings Preview"}
+            </h4>
             <div className="space-y-1 text-sm text-gray-400">
               <p>
                 {maxPlayers[0]} players • {maxRounds[0]} rounds • {roundTime[0]}s per round
@@ -287,24 +336,47 @@ export function UpdateRoomModal({ onClose, onUpdateRoom, currentRoom, isHost }: 
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleUpdateRoom}
-              className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 cursor-pointer"
-              disabled={selectedCategories.length === 0 || (isPrivate && !password.trim())}
-            >
-              Update Settings
-            </Button>
-            {currentRoom?.gameState !== "playing" && (
+            
+            {isRestarting ? (
               <Button
-                onClick={handleRestartGame}
+                onClick={handleUpdateRoom}
                 className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 cursor-pointer"
                 disabled={selectedCategories.length === 0 || (isPrivate && !password.trim())}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
-                Restart Game
+                Start New Game
               </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={handleUpdateRoom}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 cursor-pointer"
+                  disabled={selectedCategories.length === 0 || (isPrivate && !password.trim())}
+                >
+                  Update Settings
+                </Button>
+                {currentRoom?.gameState !== "playing" && (
+                  <Button
+                    onClick={handleUpdateRoom}
+                    className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 cursor-pointer"
+                    disabled={selectedCategories.length === 0 || (isPrivate && !password.trim())}
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Restart Game
+                  </Button>
+                )}
+              </>
             )}
           </div>
+
+          {/* Host Instructions */}
+          {isRestarting && (
+            <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+              <p className="text-sm text-green-300 text-center">
+                🎯 Choose "Quick Restart" to keep current settings or customize above for a new experience
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
