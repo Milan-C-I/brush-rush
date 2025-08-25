@@ -233,7 +233,7 @@ export default function HomePage() {
                         key={avatar.id}
                         onClick={() => setSelectedAvatar(avatar.id)}
                         disabled={isLoading}
-                        className={`w-16 h-16 rounded-xl ${avatar.color} flex items-center justify-center text-2xl transition-all duration-200 hover:scale-105 btn-press cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+                        className={`w-16 h-16 mx-auto rounded-xl ${avatar.color} flex items-center justify-center text-2xl transition-all duration-200 hover:scale-105 btn-press cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                           selectedAvatar === avatar.id
                             ? "ring-2 ring-red-400 ring-offset-2 ring-offset-slate-800 animate-pulse-glow"
                             : ""

@@ -14,7 +14,7 @@ export default function TutorialPage() {
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
+              <Button variant="ghost" size="sm" className="text-gray-300 cursor-pointer hover:text-white">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Home
               </Button>
@@ -22,8 +22,8 @@ export default function TutorialPage() {
             <h1 className="text-2xl font-bold">How to Play</h1>
           </div>
 
-          <Link href="/game">
-            <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
+          <Link href="/">
+            <Button className="bg-gradient-to-r cursor-pointer from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
               <Play className="w-4 h-4 mr-2" />
               Start Playing
             </Button>
@@ -299,7 +299,7 @@ export default function TutorialPage() {
             <Link href="/">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                className="bg-gradient-to-r cursor-pointer from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
               >
                 <Play className="w-5 h-5 mr-2" />
                 Play Now
