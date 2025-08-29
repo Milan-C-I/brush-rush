@@ -511,7 +511,7 @@ export default function GamePage() {
               {/* Color Picker */}
               <ColorPicker selectedColor={brushColor} onColorChange={setBrushColor} />
 
-              {/* Action Buttons */}
+              {/* Action Buttons 
               <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
@@ -533,7 +533,7 @@ export default function GamePage() {
                   <Redo2 className="w-4 h-4 mr-1" />
                   Redo
                 </Button>
-              </div>
+              </div> */}
 
               <Button
                 variant="destructive"
