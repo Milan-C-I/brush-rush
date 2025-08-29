@@ -21,6 +21,7 @@ interface PlayersListProps {
 }
 
 export function PlayersList({ players, onKickPlayer, isHost }: PlayersListProps) {
+  players.sort((a, b) => b.score - a.score)
   return (
     <Card className="bg-slate-700/50 border-slate-600">
       <CardHeader className="pb-3">
