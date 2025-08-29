@@ -24,7 +24,7 @@ import {
   Zap,
 } from "lucide-react"
 import Link from "next/link"
-import { useUserSettings } from "@/use-user-settings"
+import { useUserSettings } from "@/hooks/use-user-settings"
 
 export default function SettingsPage() {
   const { settings, updateSettings, resetSettings, userStats } = useUserSettings()
