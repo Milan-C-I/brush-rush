@@ -270,7 +270,7 @@ export function RoomBrowser({ onClose, onJoinRoom, onRefresh }: RoomBrowserProps
                 <Globe className="w-4 h-4 mr-2" />
                 Public Rooms
               </Button>
-              <Button
+              {/* <Button
                 variant={showPrivateRooms ? "default" : "outline"}
                 size="sm"
                 onClick={() => setShowPrivateRooms(true)}
@@ -278,7 +278,7 @@ export function RoomBrowser({ onClose, onJoinRoom, onRefresh }: RoomBrowserProps
               >
                 <Lock className="w-4 h-4 mr-2" />
                 Private Room
-              </Button>
+              </Button> */}
             </div>
 
             {!showPrivateRooms ? (

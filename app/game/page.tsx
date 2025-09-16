@@ -408,24 +408,24 @@ export default function GamePage() {
           )}
 
           {/* Settings */}
-          <Button
+          {/* <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowSettings(!showSettings)}
             className="text-gray-300 hover:text-white cursor-pointer"
           >
             <Settings className="w-4 h-4" />
-          </Button>
+          </Button> */}
 
           {/* Mute */}
-          <Button
+          {/* <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsMuted(!isMuted)}
             className="text-gray-300 hover:text-white cursor-pointer"
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </Button>
+          </Button> */}
         </div>
       </header>
 

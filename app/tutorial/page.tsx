@@ -106,7 +106,7 @@ export default function TutorialPage() {
         </div>
 
         {/* Drawing Tools */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        {/* <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Palette className="w-5 h-5 text-purple-400" />
@@ -172,7 +172,7 @@ export default function TutorialPage() {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Scoring System */}
         <Card className="bg-slate-800/50 border-slate-700">
@@ -218,7 +218,7 @@ export default function TutorialPage() {
         </Card>
 
         {/* Hints System */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        {/* <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lightbulb className="w-5 h-5 text-green-400" />
@@ -257,7 +257,7 @@ export default function TutorialPage() {
               <p className="text-gray-400 text-sm">* Hint timing can be customized by room hosts in game settings</p>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Tips & Strategies */}
         <Card className="bg-slate-800/50 border-slate-700">

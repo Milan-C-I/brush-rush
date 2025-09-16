@@ -122,7 +122,7 @@ export default function HomePage() {
             <Palette className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-            DrawTogether
+            Brush Rush
           </h1>
         </div>
 
@@ -143,7 +143,7 @@ export default function HomePage() {
               How to Play
             </Button>
           </Link>
-          <Link href="/settings">
+          {/* <Link href="/settings">
             <Button
               variant="ghost"
               size="sm"
@@ -152,7 +152,7 @@ export default function HomePage() {
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Button>
-          </Link>
+          </Link> */}
         </div>
       </nav>
 
@@ -162,12 +162,12 @@ export default function HomePage() {
           <h2 className="text-6xl font-bold mb-6 bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">
             Unleash Your Creativity!
           </h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-blue-400 mb-8 max-w-2xl mx-auto">
             Join friends and draw together in real-time. Guess words, earn points, and become the ultimate artist!
           </p>
 
           {/* Enhanced stats with animated counters */}
-          <div className="flex justify-center gap-8 mb-12 stagger-children">
+          {/* <div className="flex justify-center gap-8 mb-12 stagger-children">
             <div
               className="text-center animate-scale-in cursor-pointer hover:scale-105 transition-transform"
               style={{ "--stagger-delay": 1 } as any}
@@ -195,10 +195,10 @@ export default function HomePage() {
               </div>
               <div className="text-sm text-gray-400">Drawings Created</div>
             </div>
-          </div>
+          </div> */}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8 max-w-7xl mx-auto stagger-children">
+        <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto stagger-children">
           {/* Enhanced cards with hover effects and animations */}
           <Card
             className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover-lift animate-slide-in-left hover:border-slate-600 transition-all duration-300"
@@ -301,7 +301,7 @@ export default function HomePage() {
           </Card>
 
           {/* Leaderboard */}
-          <Card
+          {/* <Card
             className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover-lift animate-slide-in-right hover:border-slate-600 transition-all duration-300"
             style={{ "--stagger-delay": 3 } as any}
           >
@@ -345,7 +345,7 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-          </Card>
+          </Card> */}
         </div>
       </div>
 

@@ -92,7 +92,7 @@ export function RoomCreationModal({ onClose, onCreateRoom, playerData }: RoomCre
                 )}
                 <Label className="text-gray-300">{isPrivate ? "Private Room" : "Public Room"}</Label>
               </div>
-              <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
+              {/* <Switch checked={isPrivate} onCheckedChange={setIsPrivate} /> */}
             </div>
 
             {isPrivate && (
